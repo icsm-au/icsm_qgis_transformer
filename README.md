@@ -1,3 +1,3 @@
-=ICSM NTv2 Transformer QGIS Plugin=
+# ICSM NTv2 Transformer QGIS Plugin
 
 A work in progress...
