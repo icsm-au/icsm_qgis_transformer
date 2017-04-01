@@ -22,20 +22,18 @@
 """
 from __future__ import print_function
 
-
-from osgeo import gdal, osr
-from gdalconst import GA_ReadOnly
-
 import os.path
 import subprocess
+
+from gdalconst import GA_ReadOnly
+from osgeo import gdal, osr
 
 from icsm_qgis_transformer_dialog import icsm_ntv2_transformerDialog
 from PyQt4.QtCore import (SIGNAL, QCoreApplication, QObject, QSettings,
                           QTranslator, qVersion)
 from PyQt4.QtGui import QAction, QFileDialog, QIcon
-from qgis.core import (QgsCoordinateReferenceSystem,
-                       QgsMessageLog, QgsRasterFileWriter, QgsRasterLayer, QgsVectorFileWriter,
-                       QgsRasterPipe, QgsVectorLayer)
+from qgis.core import (QgsCoordinateReferenceSystem, QgsMessageLog,
+                       QgsVectorFileWriter, QgsVectorLayer)
 from qgis.gui import QgsMessageBar
 
 
@@ -48,8 +46,8 @@ def log(message, error=False):
 
 class icsm_ntv2_transformer:
     """QGIS Plugin Implementation."""
-    AGD66GRID = os.path.dirname(__file__) + '/grids/Aus_AGD66_GDA94_20010913.gsb'
-    AGD84GRID = os.path.dirname(__file__) + '/grids/Aus_AGD84_GDA94_20010702.gsb'
+    AGD66GRID = os.path.dirname(__file__) + '/grids/A66_National_13_09_01.gsb'
+    AGD84GRID = os.path.dirname(__file__) + '/grids/National_84_02_07_01.gsb'
 
     SUPPORTED_EPSG = {
         'EPSG:20249': ["AGD66 to GDA94", 'AGD66 AMG [EPSG:202XX]', 'GDA94 MGA [EPSG:283XX]', 49],
@@ -73,18 +71,20 @@ class icsm_ntv2_transformer:
     }
 
     TRANSFORMATIONS = {
-        "AGD66 to GDA94": 'test',
-        'AGD84 to GDA94': 'test2'
+        "AGD66 to GDA94": '',
+        "AGD84 to GDA94": '',
+        "GDA94 to AGD66": '',
+        "GDA94 to AGD84": '',
     }
 
     CRS_STRINGS = {
         'AGD66 AMG [EPSG:202XX]': [
-            'EPSG:202<ZONE>',
-            '+proj=utm +zone=<ZONE> +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
+            'EPSG:202{zone}',
+            '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
         ],
         'AGD84 AMG [EPSG:203XX]': [
-            'EPSG:203<ZONE>',
-            '+proj=utm +zone=<ZONE> +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD84GRID + ' +wktext',
+            'EPSG:203{zone}',
+            '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD84GRID + ' +wktext',
         ],
         'AGD66 LonLat [EPSG:4202]': [
             'EPSG:4202',
@@ -95,7 +95,7 @@ class icsm_ntv2_transformer:
             '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD84GRID + ' +wktext'
         ],
         'GDA94 MGA [EPSG:283XX]': [
-            'EPSG:283<ZONE>',
+            'EPSG:283{zone}',
             None
         ],
         'GDA94 LonLat [EPSG:4283]': [
@@ -217,7 +217,7 @@ class icsm_ntv2_transformer:
         zone = this_source_crs[3]
 
         if zone:
-            dest_crs = dest_crs.replace('<ZONE>', str(zone))
+            dest_crs = dest_crs.format(zone=zone)
 
         return dest_crs
 
@@ -228,7 +228,7 @@ class icsm_ntv2_transformer:
         zone = this_source_crs[3]
 
         if zone:
-            proj_string = proj_string.replace('<ZONE>', str(zone))
+            proj_string = proj_string.format(zone=zone)
 
         return proj_string
 
@@ -399,4 +399,3 @@ class icsm_ntv2_transformer:
             else:
                 self.iface.messageBar().pushMessage(
                     "Error", "Invalid settings...", level=QgsMessageBar.CRITICAL, duration=3)
-
