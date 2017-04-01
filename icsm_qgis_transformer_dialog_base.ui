@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>392</width>
-    <height>402</height>
+    <width>530</width>
+    <height>483</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,8 +16,8 @@
   <widget class="QDialogButtonBox" name="button_box">
    <property name="geometry">
     <rect>
-     <x>30</x>
-     <y>331</y>
+     <x>170</x>
+     <y>430</y>
      <width>341</width>
      <height>51</height>
     </rect>
@@ -36,108 +36,88 @@
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>240</y>
-     <width>351</width>
-     <height>81</height>
+     <y>260</y>
+     <width>491</width>
+     <height>151</height>
     </rect>
    </property>
    <property name="readOnly">
     <bool>true</bool>
    </property>
   </widget>
-  <widget class="QLabel" name="label_3">
+  <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
-     <x>21</x>
-     <y>150</y>
-     <width>44</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Out file</string>
-   </property>
-  </widget>
-  <widget class="QWidget" name="">
-   <property name="geometry">
-    <rect>
-     <x>21</x>
-     <y>150</y>
-     <width>351</width>
-     <height>71</height>
+     <x>20</x>
+     <y>85</y>
+     <width>491</width>
+     <height>141</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout_2">
     <item row="0" column="0">
+     <widget class="QLabel" name="label_3">
+      <property name="text">
+       <string>Out file</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="0">
+     <widget class="QComboBox" name="out_crs_picker"/>
+    </item>
+    <item row="1" column="0">
      <widget class="QLineEdit" name="out_file_name"/>
     </item>
-    <item row="0" column="1">
+    <item row="1" column="1">
      <widget class="QPushButton" name="out_file_browse">
       <property name="text">
        <string>Browse...</string>
       </property>
      </widget>
     </item>
+    <item row="2" column="0">
+     <widget class="QLabel" name="label_4">
+      <property name="text">
+       <string>Out coordinate system</string>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
-  <widget class="QLabel" name="label_2">
+  <widget class="QWidget" name="layoutWidget">
    <property name="geometry">
     <rect>
-     <x>22</x>
-     <y>79</y>
-     <width>33</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>In file</string>
-   </property>
-  </widget>
-  <widget class="QWidget" name="">
-   <property name="geometry">
-    <rect>
-     <x>22</x>
-     <y>80</y>
-     <width>351</width>
-     <height>71</height>
+     <x>20</x>
+     <y>10</y>
+     <width>491</width>
+     <height>81</height>
     </rect>
    </property>
    <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="0">
+    <item row="1" column="0">
      <widget class="QLineEdit" name="in_file_name"/>
     </item>
-    <item row="0" column="1">
+    <item row="1" column="1">
      <widget class="QPushButton" name="in_file_browse">
       <property name="text">
        <string>Browse...</string>
       </property>
      </widget>
     </item>
+    <item row="0" column="0">
+     <widget class="QLabel" name="label_2">
+      <property name="text">
+       <string>In file</string>
+      </property>
+     </widget>
+    </item>
    </layout>
   </widget>
-  <widget class="QLabel" name="label">
-   <property name="geometry">
-    <rect>
-     <x>24</x>
-     <y>20</y>
-     <width>93</width>
-     <height>16</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>Transformation</string>
-   </property>
-  </widget>
-  <widget class="QComboBox" name="transformation_picker">
-   <property name="geometry">
-    <rect>
-     <x>21</x>
-     <y>46</y>
-     <width>281</width>
-     <height>26</height>
-    </rect>
-   </property>
-  </widget>
+  <zorder>button_box</zorder>
+  <zorder>transform_text</zorder>
+  <zorder>layoutWidget</zorder>
+  <zorder>layoutWidget</zorder>
+  <zorder>label</zorder>
  </widget>
  <resources/>
  <connections>

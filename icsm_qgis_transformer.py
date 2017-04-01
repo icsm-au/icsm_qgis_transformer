@@ -36,6 +36,15 @@ from qgis.core import (QgsCoordinateReferenceSystem, QgsMessageLog,
                        QgsVectorFileWriter, QgsVectorLayer)
 from qgis.gui import QgsMessageBar
 
+from collections import namedtuple
+
+
+Transform = namedtuple(
+    'Transform',
+    ['name', 'source_name', 'target_name', 'source_proj', 'target_proj', 'source_code', 'target_code'],
+    verbose=True
+)
+
 
 def log(message, error=False):
     log_level = QgsMessageLog.INFO
@@ -49,60 +58,266 @@ class icsm_ntv2_transformer:
     AGD66GRID = os.path.dirname(__file__) + '/grids/A66_National_13_09_01.gsb'
     AGD84GRID = os.path.dirname(__file__) + '/grids/National_84_02_07_01.gsb'
 
-    SUPPORTED_EPSG = {
-        'EPSG:20249': ["AGD66 to GDA94", 'AGD66 AMG [EPSG:202XX]', 'GDA94 MGA [EPSG:283XX]', 49],
-        'EPSG:20250': ["AGD66 to GDA94", 'AGD66 AMG [EPSG:202XX]', 'GDA94 MGA [EPSG:283XX]', 50],
-        'EPSG:20251': ["AGD66 to GDA94", 'AGD66 AMG [EPSG:202XX]', 'GDA94 MGA [EPSG:283XX]', 51],
-        'EPSG:20252': ["AGD66 to GDA94", 'AGD66 AMG [EPSG:202XX]', 'GDA94 MGA [EPSG:283XX]', 52],
-        'EPSG:20253': ["AGD66 to GDA94", 'AGD66 AMG [EPSG:202XX]', 'GDA94 MGA [EPSG:283XX]', 53],
-        'EPSG:20254': ["AGD66 to GDA94", 'AGD66 AMG [EPSG:202XX]', 'GDA94 MGA [EPSG:283XX]', 54],
-        'EPSG:20255': ["AGD66 to GDA94", 'AGD66 AMG [EPSG:202XX]', 'GDA94 MGA [EPSG:283XX]', 55],
-        'EPSG:20256': ["AGD66 to GDA94", 'AGD66 AMG [EPSG:202XX]', 'GDA94 MGA [EPSG:283XX]', 56],
-        'EPSG:20349': ["AGD84 to GDA94", 'AGD84 AMG [EPSG:203XX]', 'GDA94 MGA [EPSG:283XX]', 49],
-        'EPSG:20350': ["AGD84 to GDA94", 'AGD84 AMG [EPSG:203XX]', 'GDA94 MGA [EPSG:283XX]', 50],
-        'EPSG:20351': ["AGD84 to GDA94", 'AGD84 AMG [EPSG:203XX]', 'GDA94 MGA [EPSG:283XX]', 51],
-        'EPSG:20352': ["AGD84 to GDA94", 'AGD84 AMG [EPSG:203XX]', 'GDA94 MGA [EPSG:283XX]', 52],
-        'EPSG:20353': ["AGD84 to GDA94", 'AGD84 AMG [EPSG:203XX]', 'GDA94 MGA [EPSG:283XX]', 53],
-        'EPSG:20354': ["AGD84 to GDA94", 'AGD84 AMG [EPSG:203XX]', 'GDA94 MGA [EPSG:283XX]', 54],
-        'EPSG:20355': ["AGD84 to GDA94", 'AGD84 AMG [EPSG:203XX]', 'GDA94 MGA [EPSG:283XX]', 55],
-        'EPSG:20356': ["AGD84 to GDA94", 'AGD84 AMG [EPSG:203XX]', 'GDA94 MGA [EPSG:283XX]', 56],
-        'EPSG:4202': ["AGD66 to GDA94", 'AGD66 LonLat [EPSG:4202]', 'GDA94 LonLat [EPSG:4283]', False],
-        'EPSG:4203': ["AGD66 to GDA94", 'AGD84 LonLat [EPSG:4203]', 'GDA94 LonLat [EPSG:4283]', False]
+    # EPSGs, in code, name, utm
+    available_epsgs = {
+        '202': {
+            "name": "AGD66 AMG",
+            "utm": True,
+            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD66GRID + ' +wktext'
+        },
+        '203': {
+            "name": "AGD84 AMG",
+            "utm": True,
+            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD84GRID + ' +wktext',
+        },
+        '283': {
+            "name": "GDA94 MGA",
+            'utm': True,
+            "proj": None
+        },
+        '4202': {
+            "name": "AGD66 LonLat",
+            "utm": False,
+            "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
+        },
+        '4203': {
+            "name": "AGD84 LonLat",
+            "utm": False,
+            "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD84GRID + ' +wktext'
+        },
+        '4283': {
+            "name": "GDA94 LonLat",
+            "utm": False,
+            "proj": None
+        }
     }
 
-    TRANSFORMATIONS = {
-        "AGD66 to GDA94": '',
-        "AGD84 to GDA94": '',
-        "GDA94 to AGD66": '',
-        "GDA94 to AGD84": '',
+    # Supported Transforms. FROM_CRS: [name, from, to, zone]
+    SUPPORTED_TRANSFORMS = {
+        # Transform('name', 'source_name', 'target_name', 'source_proj', 'target_proj')
     }
+    TRANSFORMS = []
 
-    CRS_STRINGS = {
-        'AGD66 AMG [EPSG:202XX]': [
-            'EPSG:202{zone}',
-            '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
-        ],
-        'AGD84 AMG [EPSG:203XX]': [
-            'EPSG:203{zone}',
-            '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD84GRID + ' +wktext',
-        ],
-        'AGD66 LonLat [EPSG:4202]': [
-            'EPSG:4202',
-            '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
-        ],
-        'AGD84 LonLat [EPSG:4203]': [
-            'EPSG:4203',
-            '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD84GRID + ' +wktext'
-        ],
-        'GDA94 MGA [EPSG:283XX]': [
-            'EPSG:283{zone}',
-            None
-        ],
-        'GDA94 LonLat [EPSG:4283]': [
-            'EPSG:4238',
-            None
-        ]
-    }
+    # Range makes a list from 49 to 56
+    available_zones = range(49, 57)
+
+    # transformations - a list of FROM and all available TOs
+    transformations = [
+        # UTM
+        ['202', ['283']],
+        ['203', ['283']],
+        ['283', ['202', '203']],
+        # LonLat
+        ['4202', ['4283']],
+        ['4203', ['4283']],
+        ['4283', ['4202', '4203']]
+    ]
+
+    def build_transform(self, in_info, in_crs, zone=False):
+        source_name = in_info['name']
+        source_proj = in_info['proj']
+        source_epsg = in_crs[0]
+        source_target_epsgs = in_crs[1]
+        zone_string = ""
+        if zone:
+            zone_string = str(zone)
+
+        source_code = '{epsg}{zone}'.format(epsg=source_epsg, zone=zone_string)
+        epsg_string = 'EPSG:{}'.format(source_code)
+        name_string = "{name} [EPSG:{code}]"
+
+        if zone and source_proj:
+            source_proj = source_proj.format(zone=zone)
+
+        target_crs = []
+        for target_epsg in source_target_epsgs:
+            target_name = self.available_epsgs[target_epsg]['name']
+            target_code = '{epsg}{zone}'.format(epsg=target_epsg, zone=zone_string)
+            name = source_name.split(' ')[0] + ' to ' + target_name.split(' ')[0]
+            source = name_string.format(name=source_name, code=source_code)
+            target = name_string.format(name=target_name, code=target_code)
+            target_proj = self.available_epsgs[target_epsg]['proj']
+
+            if zone and target_proj:
+                target_proj = target_proj.format(zone=zone)
+
+            target_crs.append(Transform(name, source, target, source_proj, target_proj, int(source_code), int(target_code)))
+
+        return epsg_string, target_crs
+
+    def update_transform_text(self, text):
+        self.dlg.transform_text.setPlainText(text)
+
+    def transform_changed(self):
+        self.validate_source_transform()
+
+    def get_dest_crs(self, source_crs):
+        this_source_crs = self.SUPPORTED_TRANSFORMS[self.in_file_crs]
+
+        dest_crs = self.CRS_STRINGS[this_source_crs[2]][0]
+        zone = this_source_crs[3]
+
+        if zone:
+            dest_crs = dest_crs.format(zone=zone)
+
+        return dest_crs
+
+    def get_source_proj_string(self, source_crs):
+        this_source_crs = self.SUPPORTED_TRANSFORMS[self.in_file_crs]
+
+        proj_string = self.CRS_STRINGS[this_source_crs[1]][1]
+        zone = this_source_crs[3]
+
+        if zone:
+            proj_string = proj_string.format(zone=zone)
+
+        return proj_string
+
+    def validate_source_transform(self, in_file_crs=None):
+        # Check if there's an in_file
+        if not self.in_file and not self.in_file_type:
+            self.update_transform_text("Select an input file.")
+            return
+
+        if in_file_crs:
+            # Set up a new CRS transform environment, as the in_file has changed
+            if in_file_crs in self.SUPPORTED_TRANSFORMS:
+                log("Selected CRS is supported")
+                self.TRANSFORMS = self.SUPPORTED_TRANSFORMS[in_file_crs]
+                self.SELECTED_TRANSFORM = self.TRANSFORMS[0]
+
+                self.dlg.out_crs_picker.clear()
+                for transform in self.TRANSFORMS:
+                    self.dlg.out_crs_picker.addItems([transform.target_name])
+            else:
+                log("Selected CRS is NOT supported.")
+                self.in_file_type = None
+                self.update_transform_text("The CRS {} for the selected input file is not supported.".format(in_file_crs))
+        else:
+            # Change the selected transform
+            self.SELECTED_TRANSFORM = self.TRANSFORMS[self.dlg.out_crs_picker.currentIndex()]
+
+        self.update_transform_text("Source CRS is {}\nDestination CRS is {}\nUsing accurate grid transform from {}".format(
+            self.SELECTED_TRANSFORM.source_name, self.SELECTED_TRANSFORM.target_name, self.SELECTED_TRANSFORM.name))
+
+    def update_infile(self):
+        newname = self.dlg.in_file_name.text()
+        self.in_file_type = None
+        fail = False
+        layer = QgsVectorLayer(newname, 'in layer', 'ogr')
+        if layer.isValid():
+            self.in_file_type = 'VECTOR'
+            in_file_crs = layer.crs().authid()
+            self.validate_source_transform(in_file_crs)
+            self.in_dataset = layer
+        else:
+            dataset = gdal.Open(newname, GA_ReadOnly)
+            if dataset is None:
+                fail = True
+            else:
+                # We have a raster!
+                self.in_file_type = 'RASTER'
+                prj = dataset.GetProjection()
+                crs = QgsCoordinateReferenceSystem(prj)
+                in_file_crs = crs.authid()
+                self.validate_source_transform(in_file_crs)
+                self.in_dataset = dataset
+        if fail:
+            self.iface.messageBar().pushMessage(
+                "Error", "Couldn't read 'in file' {} as vector or raster".format(newname), level=QgsMessageBar.CRITICAL, duration=3)
+            self.update_transform_text("Couldn't read 'In file.'")
+        else:
+            self.dlg.in_file_name.setText(newname)
+
+    def browse_infiles(self):
+        newname = QFileDialog.getOpenFileName(
+            None, "Input File", self.dlg.in_file_name.displayText(), "Any supported filetype (*.*)")
+        if newname:
+            self.dlg.in_file_name.setText(newname)
+        self.update_infile()
+
+    def browse_outfiles(self):
+        newname = QFileDialog.getSaveFileName(
+            None, "Output file", self.dlg.out_file_name.displayText(), "Shapefile or TIFF (*.shp, *.tiff)")
+
+        if newname:
+            self.dlg.out_file_name.setText(newname)
+
+    def get_epsg(self, layer):
+        return layer.crs().authid().split(':')[1]
+
+    def transform_vector(self, out_file):
+        log("Transforming")
+        layer = self.in_dataset
+
+        source_crs = QgsCoordinateReferenceSystem()
+        if self.SELECTED_TRANSFORM.source_proj:
+            log("Source from proj")
+            source_crs.createFromProj4(self.SELECTED_TRANSFORM.source_proj)
+        else:
+            log("Source from id")
+            source_crs.createFromId(self.SELECTED_TRANSFORM.source_code)
+
+        log("Setting Source CRS")
+        layer.setCrs(source_crs)
+
+        dest_crs = QgsCoordinateReferenceSystem()
+        if self.SELECTED_TRANSFORM.target_proj:
+            log("Target from proj")
+            dest_crs.createFromProj4(self.SELECTED_TRANSFORM.target_proj)
+        else:
+            log("Target from id")
+            dest_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
+
+        error = QgsVectorFileWriter.writeAsVectorFormat(layer, out_file, 'utf-8', dest_crs, 'ESRI Shapefile')
+        if error == QgsVectorFileWriter.NoError:
+            log("Success")
+            self.iface.messageBar().pushMessage(
+                "Success", "Transformation complete.", level=QgsMessageBar.INFO, duration=3)
+        else:
+            log("Error writing vector, code: {}".format(str(error)))
+            self.iface.messageBar().pushMessage(
+                "Error", "Transformation failed, please check your configuration.", level=QgsMessageBar.CRITICAL, duration=3)
+
+    def transform_raster(self, out_file):
+        src_ds = self.in_dataset
+
+        # Define source CRS
+        src_crs = osr.SpatialReference()
+        if self.SELECTED_TRANSFORM.source_proj:
+            src_crs.ImportFromProj4(self.SELECTED_TRANSFORM.source_proj)
+        else:
+            src_crs.ImportFromEPSG(self.self.SELECTED_TRANSFORM.source_code)
+        src_wkt = src_crs.ExportToWkt()
+
+        # Define target CRS
+        dst_crs = osr.SpatialReference()
+        if self.SELECTED_TRANSFORM.source_proj:
+            dst_crs.ImportFromProj4(self.SELECTED_TRANSFORM.target_proj)
+        else:
+            dst_crs.ImportFromEPSG(self.self.SELECTED_TRANSFORM.target_code)
+        dst_wkt = dst_crs.ExportToWkt()
+
+        error_threshold = 0.125
+        resampling = gdal.GRA_NearestNeighbour
+
+        # Call AutoCreateWarpedVRT() to fetch default values for target raster dimensions and geotransform
+        tmp_ds = gdal.AutoCreateWarpedVRT(
+            src_ds,
+            src_wkt,
+            dst_wkt,
+            resampling,
+            error_threshold
+        )
+        # Create the final warped raster
+        try:
+            dst_ds = gdal.GetDriverByName('GTiff').CreateCopy(out_file, tmp_ds)
+            dst_ds = None
+            self.iface.messageBar().pushMessage(
+                "Success", "Transformation complete.", level=QgsMessageBar.INFO, duration=3)
+        except Exception as e:
+            self.iface.messageBar().pushMessage(
+                "Error", "Transformation failed, please check your configuration. Error was: {}".format(e), level=QgsMessageBar.CRITICAL, duration=3)
 
     def __init__(self, iface):
         self.iface = iface
@@ -135,12 +350,17 @@ class icsm_ntv2_transformer:
 
         self.in_file_type = None
 
-        self.in_file_crs = None
-        self.out_file_crs = None
-
-        self.in_file_proj_string = None
-
-        self.oldValidation = None
+        for source_crs in self.transformations:
+            epsg_info = self.available_epsgs[source_crs[0]]
+            if epsg_info['utm']:
+                # This is a UTM crs, so process all the codes
+                for zone in self.available_zones:
+                    transform_label, transforms = self.build_transform(epsg_info, source_crs, zone=zone)
+                    self.SUPPORTED_TRANSFORMS[transform_label] = transforms
+            else:
+                # Just process this one, no zones
+                transform_label, transforms = self.build_transform(epsg_info, source_crs)
+                self.SUPPORTED_TRANSFORMS[transform_label] = transforms
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -159,6 +379,7 @@ class icsm_ntv2_transformer:
         parent=None
     ):
         self.dlg = icsm_ntv2_transformerDialog()
+        self.update_transform_text("Choose an in file to get started.")
 
         icon = QIcon(icon_path)
         action = QAction(icon, text, parent)
@@ -204,162 +425,16 @@ class icsm_ntv2_transformer:
         # remove the toolbar
         del self.toolbar
 
-    def update_transform_text(self, text):
-        self.dlg.transform_text.setPlainText(text)
-
-    def transform_changed(self):
-        self.validate_source_transform()
-
-    def get_dest_crs(self, source_crs):
-        this_source_crs = self.SUPPORTED_EPSG[self.in_file_crs]
-
-        dest_crs = self.CRS_STRINGS[this_source_crs[2]][0]
-        zone = this_source_crs[3]
-
-        if zone:
-            dest_crs = dest_crs.format(zone=zone)
-
-        return dest_crs
-
-    def get_source_proj_string(self, source_crs):
-        this_source_crs = self.SUPPORTED_EPSG[self.in_file_crs]
-
-        proj_string = self.CRS_STRINGS[this_source_crs[1]][1]
-        zone = this_source_crs[3]
-
-        if zone:
-            proj_string = proj_string.format(zone=zone)
-
-        return proj_string
-
-    def validate_source_transform(self):
-        if not self.in_file and not self.in_file_type and not self.in_file_crs:
-            self.update_transform_text("Select an input file.")
-            return
-        transform = self.dlg.transformation_picker.currentText()
-        if self.in_file_crs in self.SUPPORTED_EPSG:
-            log("Selected CRS is supported")
-            this_source_crs = self.SUPPORTED_EPSG[self.in_file_crs]
-            if this_source_crs[0] == transform:
-                log("We've got a valid transform for this CRS")
-                self.out_file_crs = self.get_dest_crs(self.in_file_crs)
-                self.in_file_proj_string = self.get_source_proj_string(self.in_file_crs)
-                log("Using source proj string: {}".format(self.in_file_proj_string))
-                self.update_transform_text("Source CRS is {}\nDestination CRS is {}\nUsing accurate grid transform from {}".format(
-                    self.in_file_crs, self.out_file_crs, self.dlg.transformation_picker.currentText()))
-            else:
-                log("No valid transform for this CRS")
-                self.in_file_type = None
-                self.update_transform_text("Transformation {} is not valid for the input file's CRS {}".format(transform, self.in_file_crs))
-        else:
-            log("Selected CRS is NOT supported.")
-            self.in_file_type = None
-            self.update_transform_text("The CRS {} for the selected input file is not supported.".format(self.in_file_crs))
-
-    def browse_infiles(self):
-        newname = QFileDialog.getOpenFileName(
-            None, "Input File", self.dlg.in_file_name.displayText(), "Any supported filetype (*.*)")
-
-        if newname:
-            self.in_file_type = None
-            fail = False
-            layer = QgsVectorLayer(newname, 'in layer', 'ogr')
-            if layer.isValid():
-                self.in_file_type = 'VECTOR'
-                self.in_file_crs = layer.crs().authid()
-                self.validate_source_transform()
-                self.in_dataset = layer
-            else:
-                dataset = gdal.Open(newname, GA_ReadOnly)
-                if dataset is None:
-                    fail = True
-                else:
-                    # We have a raster!
-                    self.in_file_type = 'RASTER'
-                    prj = dataset.GetProjection()
-                    crs = QgsCoordinateReferenceSystem(prj)
-                    self.in_file_crs = crs.authid()
-                    self.validate_source_transform()
-                    self.in_dataset = dataset
-            if fail:
-                self.iface.messageBar().pushMessage(
-                    "Error", "Couldn't read 'in file' {} as vector or raster".format(newname), level=QgsMessageBar.CRITICAL, duration=3)
-
-            self.dlg.in_file_name.setText(newname)
-
-    def browse_outfiles(self):
-        newname = QFileDialog.getSaveFileName(
-            None, "Output file", self.dlg.out_file_name.displayText(), "Shapefile or TIFF (*.shp, *.tiff)")
-
-        if newname:
-            self.dlg.out_file_name.setText(newname)
-
-    def get_epsg(self, layer):
-        return layer.crs().authid().split(':')[1]
-
-    def transform_vector(self, out_file):
-        layer = self.in_dataset
-
-        source_crs = QgsCoordinateReferenceSystem()
-        source_crs.createFromProj4(self.in_file_proj_string)
-
-        layer.setCrs(source_crs)
-
-        dest_crs = QgsCoordinateReferenceSystem()
-        dest_crs.createFromId(int(self.out_file_crs.split(':')[1]))
-
-        error = QgsVectorFileWriter.writeAsVectorFormat(layer, out_file, 'utf-8', dest_crs, 'ESRI Shapefile')
-        if error == QgsVectorFileWriter.NoError:
-            log("Success")
-            self.iface.messageBar().pushMessage(
-                "Success", "Transformation complete.", level=QgsMessageBar.INFO, duration=3)
-        else:
-            log("Error writing vector, code: {}".format(str(error)))
-            self.iface.messageBar().pushMessage(
-                "Error", "Transformation failed, please check your configuration.", level=QgsMessageBar.CRITICAL, duration=3)
-
-    def transform_raster(self, out_file):
-        src_ds = self.in_dataset
-
-        # Define source CRS
-        src_crs = osr.SpatialReference()
-        src_crs.ImportFromProj4(self.in_file_proj_string)
-        src_wkt = src_crs.ExportToWkt()
-
-        # Define target CRS
-        dst_crs = osr.SpatialReference()
-        dst_crs.ImportFromEPSG(int(self.out_file_crs.split(':')[1]))
-        dst_wkt = dst_crs.ExportToWkt()
-
-        error_threshold = 0.125
-        resampling = gdal.GRA_NearestNeighbour
-
-        # Call AutoCreateWarpedVRT() to fetch default values for target raster dimensions and geotransform
-        tmp_ds = gdal.AutoCreateWarpedVRT(
-            src_ds,
-            src_wkt,
-            dst_wkt,
-            resampling,
-            error_threshold
-        )
-        # Create the final warped raster
-        try:
-            dst_ds = gdal.GetDriverByName('GTiff').CreateCopy(out_file, tmp_ds)
-            dst_ds = None
-            self.iface.messageBar().pushMessage(
-                "Success", "Transformation complete.", level=QgsMessageBar.INFO, duration=3)
-        except Exception as e:
-            self.iface.messageBar().pushMessage(
-                "Error", "Transformation failed, please check your configuration. Error was: {}".format(e), level=QgsMessageBar.CRITICAL, duration=3)
-
     def run(self):
         """Run method that performs all the real work"""
 
         QObject.connect(self.dlg.in_file_browse, SIGNAL("clicked()"), self.browse_infiles)
+        QObject.connect(self.dlg.in_file_name, SIGNAL("textChanged(QString)"), self.update_infile)
         QObject.connect(self.dlg.out_file_browse, SIGNAL("clicked()"), self.browse_outfiles)
-        QObject.connect(self.dlg.transformation_picker, SIGNAL("currentIndexChanged(int)"), self.transform_changed)
-        if self.dlg.transformation_picker.count() == 0:
-            self.dlg.transformation_picker.addItems(self.TRANSFORMATIONS.keys())
+        # QObject.connect(self.dlg.transformation_picker, SIGNAL("currentIndexChanged(int)"), self.transform_changed)
+        QObject.connect(self.dlg.out_crs_picker, SIGNAL("currentIndexChanged(int)"), self.transform_changed)
+        # if self.dlg.transformation_picker.count() == 0:
+        #     self.dlg.transformation_picker.addItems(self.TRANSFORMATIONS.keys())
 
         # show the dialog
         self.dlg.show()
