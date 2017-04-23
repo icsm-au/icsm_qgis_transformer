@@ -24,6 +24,8 @@ from __future__ import print_function
 
 import os.path
 import subprocess
+import tempfile
+from collections import namedtuple
 
 from gdalconst import GA_ReadOnly
 from osgeo import gdal, osr
@@ -36,12 +38,9 @@ from qgis.core import (QgsCoordinateReferenceSystem, QgsMessageLog,
                        QgsVectorFileWriter, QgsVectorLayer)
 from qgis.gui import QgsMessageBar
 
-from collections import namedtuple
-
-
 Transform = namedtuple(
     'Transform',
-    ['name', 'source_name', 'target_name', 'source_proj', 'target_proj', 'source_code', 'target_code'],
+    ['name', 'source_name', 'target_name', 'source_proj', 'target_proj', 'source_code', 'target_code', 'grid'],
     verbose=True
 )
 
@@ -63,38 +62,44 @@ class icsm_ntv2_transformer:
         '202': {
             "name": "AGD66 AMG",
             "utm": True,
-            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD66GRID + ' +wktext'
+            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
+            "grid": AGD66GRID
         },
         '203': {
             "name": "AGD84 AMG",
             "utm": True,
             "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD84GRID + ' +wktext',
+            "grid": AGD84GRID
         },
         '283': {
             "name": "GDA94 MGA",
             'utm': True,
-            "proj": None
+            "proj": None,
+            "grid": None
         },
         '4202': {
             "name": "AGD66 LonLat",
             "utm": False,
             "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
+            "grid": AGD66GRID
         },
         '4203': {
             "name": "AGD84 LonLat",
             "utm": False,
-            "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD84GRID + ' +wktext'
+            "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD84GRID + ' +wktext',
+            "grid": AGD84GRID
         },
         '4283': {
             "name": "GDA94 LonLat",
             "utm": False,
-            "proj": None
+            "proj": None,
+            "grid": None
         }
     }
 
     # Supported Transforms. FROM_CRS: [name, from, to, zone]
     SUPPORTED_TRANSFORMS = {
-        # Transform('name', 'source_name', 'target_name', 'source_proj', 'target_proj')
+        # Transform('name', 'source_name', 'target_name', 'source_proj', 'target_proj', 'grid')
     }
     TRANSFORMS = []
 
@@ -116,6 +121,7 @@ class icsm_ntv2_transformer:
     def build_transform(self, in_info, in_crs, zone=False):
         source_name = in_info['name']
         source_proj = in_info['proj']
+        source_grid = in_info['grid']
         source_epsg = in_crs[0]
         source_target_epsgs = in_crs[1]
         zone_string = ""
@@ -132,6 +138,7 @@ class icsm_ntv2_transformer:
         target_crs = []
         for target_epsg in source_target_epsgs:
             target_name = self.available_epsgs[target_epsg]['name']
+            target_grid = self.available_epsgs[target_epsg]['grid']
             target_code = '{epsg}{zone}'.format(epsg=target_epsg, zone=zone_string)
             name = source_name.split(' ')[0] + ' to ' + target_name.split(' ')[0]
             source = name_string.format(name=source_name, code=source_code)
@@ -141,7 +148,16 @@ class icsm_ntv2_transformer:
             if zone and target_proj:
                 target_proj = target_proj.format(zone=zone)
 
-            target_crs.append(Transform(name, source, target, source_proj, target_proj, int(source_code), int(target_code)))
+            grid = None
+            if source_grid:
+                grid = source_grid
+            elif target_grid:
+                grid = target_grid
+            grid = os.path.basename(grid)
+            if grid:
+                grid = "using NTv2 grid '{}'".format(grid)
+
+            target_crs.append(Transform(name, source, target, source_proj, target_proj, int(source_code), int(target_code), grid))
 
         return epsg_string, target_crs
 
@@ -193,19 +209,35 @@ class icsm_ntv2_transformer:
                 log("Selected CRS is NOT supported.")
                 self.in_file_type = None
                 self.update_transform_text("The CRS {} for the selected input file is not supported.".format(in_file_crs))
+                return
         else:
-            # Change the selected transform
-            self.SELECTED_TRANSFORM = self.TRANSFORMS[self.dlg.out_crs_picker.currentIndex()]
+            if self.dlg.out_crs_picker.currentIndex() != -1:
+                # Change the selected transform
+                self.SELECTED_TRANSFORM = self.TRANSFORMS[self.dlg.out_crs_picker.currentIndex()]
+            else:
+                # Something's gone wrong
+                self.update_transform_text("Unable to identify the source file's CRS...")
+                return
 
-        self.update_transform_text("Source CRS is {}\nDestination CRS is {}\nUsing accurate grid transform from {}".format(
-            self.SELECTED_TRANSFORM.source_name, self.SELECTED_TRANSFORM.target_name, self.SELECTED_TRANSFORM.name))
+        self.update_transform_text("Source CRS is {}\nDestination CRS is {}\nTransforming from {} {}".format(
+            self.SELECTED_TRANSFORM.source_name,
+            self.SELECTED_TRANSFORM.target_name,
+            self.SELECTED_TRANSFORM.name,
+            self.SELECTED_TRANSFORM.grid))
 
     def update_infile(self):
+        log("Updating in file")
         newname = self.dlg.in_file_name.text()
+
+        # Clear out dialogs
         self.in_file_type = None
+        self.in_file_crs = None
+        self.dlg.out_crs_picker.clear()
+
         fail = False
         layer = QgsVectorLayer(newname, 'in layer', 'ogr')
         if layer.isValid():
+            # We have a vector!
             self.in_file_type = 'VECTOR'
             in_file_crs = layer.crs().authid()
             self.validate_source_transform(in_file_crs)
@@ -219,6 +251,7 @@ class icsm_ntv2_transformer:
                 self.in_file_type = 'RASTER'
                 prj = dataset.GetProjection()
                 crs = QgsCoordinateReferenceSystem(prj)
+                log(crs.toProj4())
                 in_file_crs = crs.authid()
                 self.validate_source_transform(in_file_crs)
                 self.in_dataset = dataset
@@ -230,11 +263,12 @@ class icsm_ntv2_transformer:
             self.dlg.in_file_name.setText(newname)
 
     def browse_infiles(self):
+        log("Browsing in files")
         newname = QFileDialog.getOpenFileName(
             None, "Input File", self.dlg.in_file_name.displayText(), "Any supported filetype (*.*)")
         if newname:
             self.dlg.in_file_name.setText(newname)
-        self.update_infile()
+        # self.update_infile()
 
     def browse_outfiles(self):
         newname = QFileDialog.getSaveFileName(
@@ -253,6 +287,7 @@ class icsm_ntv2_transformer:
         source_crs = QgsCoordinateReferenceSystem()
         if self.SELECTED_TRANSFORM.source_proj:
             log("Source from proj")
+            log(self.SELECTED_TRANSFORM.source_proj)
             source_crs.createFromProj4(self.SELECTED_TRANSFORM.source_proj)
         else:
             log("Source from id")
@@ -264,7 +299,24 @@ class icsm_ntv2_transformer:
         dest_crs = QgsCoordinateReferenceSystem()
         if self.SELECTED_TRANSFORM.target_proj:
             log("Target from proj")
+            log(self.SELECTED_TRANSFORM.target_proj)
             dest_crs.createFromProj4(self.SELECTED_TRANSFORM.target_proj)
+
+            # We do an intermediate transform, so that the target gets a proper SRID
+            temp_dir = tempfile.mkdtemp()
+            temp_outfilename = os.path.join(temp_dir, 'temp_file.shp')
+            log(temp_outfilename)
+            error = QgsVectorFileWriter.writeAsVectorFormat(layer, temp_outfilename, 'utf-8', dest_crs, 'ESRI Shapefile')
+            if error == QgsVectorFileWriter.NoError:
+                log("Success on intermediate transform")
+                # These overwrite the original target layer destination file.
+                layer = QgsVectorLayer(temp_outfilename, 'in layer', 'ogr')
+                dest_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
+            else:
+                log("Error writing vector, code: {}".format(str(error)))
+                self.iface.messageBar().pushMessage(
+                    "Error", "Transformation failed, please check your configuration.", level=QgsMessageBar.CRITICAL, duration=3)
+                return
         else:
             log("Target from id")
             dest_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
@@ -287,15 +339,15 @@ class icsm_ntv2_transformer:
         if self.SELECTED_TRANSFORM.source_proj:
             src_crs.ImportFromProj4(self.SELECTED_TRANSFORM.source_proj)
         else:
-            src_crs.ImportFromEPSG(self.self.SELECTED_TRANSFORM.source_code)
+            src_crs.ImportFromEPSG(self.SELECTED_TRANSFORM.source_code)
         src_wkt = src_crs.ExportToWkt()
 
         # Define target CRS
         dst_crs = osr.SpatialReference()
-        if self.SELECTED_TRANSFORM.source_proj:
+        if self.SELECTED_TRANSFORM.target_proj:
             dst_crs.ImportFromProj4(self.SELECTED_TRANSFORM.target_proj)
         else:
-            dst_crs.ImportFromEPSG(self.self.SELECTED_TRANSFORM.target_code)
+            dst_crs.ImportFromEPSG(self.SELECTED_TRANSFORM.target_code)
         dst_wkt = dst_crs.ExportToWkt()
 
         error_threshold = 0.125
@@ -311,6 +363,8 @@ class icsm_ntv2_transformer:
         )
         # Create the final warped raster
         try:
+            if '.tif' not in out_file:
+                out_file += '.tiff'
             dst_ds = gdal.GetDriverByName('GTiff').CreateCopy(out_file, tmp_ds)
             dst_ds = None
             self.iface.messageBar().pushMessage(
@@ -320,6 +374,7 @@ class icsm_ntv2_transformer:
                 "Error", "Transformation failed, please check your configuration. Error was: {}".format(e), level=QgsMessageBar.CRITICAL, duration=3)
 
     def __init__(self, iface):
+        self.dialog_initialised = False
         self.iface = iface
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
@@ -428,13 +483,13 @@ class icsm_ntv2_transformer:
     def run(self):
         """Run method that performs all the real work"""
 
-        QObject.connect(self.dlg.in_file_browse, SIGNAL("clicked()"), self.browse_infiles)
-        QObject.connect(self.dlg.in_file_name, SIGNAL("textChanged(QString)"), self.update_infile)
-        QObject.connect(self.dlg.out_file_browse, SIGNAL("clicked()"), self.browse_outfiles)
-        # QObject.connect(self.dlg.transformation_picker, SIGNAL("currentIndexChanged(int)"), self.transform_changed)
-        QObject.connect(self.dlg.out_crs_picker, SIGNAL("currentIndexChanged(int)"), self.transform_changed)
-        # if self.dlg.transformation_picker.count() == 0:
-        #     self.dlg.transformation_picker.addItems(self.TRANSFORMATIONS.keys())
+        # Set up the signals.
+        if not self.dialog_initialised:
+            QObject.connect(self.dlg.in_file_browse, SIGNAL("clicked()"), self.browse_infiles)
+            QObject.connect(self.dlg.in_file_name, SIGNAL("textChanged(QString)"), self.update_infile)
+            QObject.connect(self.dlg.out_file_browse, SIGNAL("clicked()"), self.browse_outfiles)
+            QObject.connect(self.dlg.out_crs_picker, SIGNAL("currentIndexChanged(int)"), self.transform_changed)
+            self.dialog_initialised = True
 
         # show the dialog
         self.dlg.show()
