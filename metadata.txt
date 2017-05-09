@@ -14,7 +14,7 @@ version=0.1
 author=Alex Leith
 email=alex@auspatious.com
 
-about=TODO
+about=This plugin enables accurate transformations using official Australian NTv2 grids.
 
 tracker=https://github.com/icsm-au/icsm_qgis_transformer/issues
 repository=https://github.com/icsm-au/icsm_qgis_transformer
