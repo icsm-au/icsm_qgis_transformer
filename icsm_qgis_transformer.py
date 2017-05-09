@@ -23,6 +23,7 @@
 from __future__ import print_function
 
 import os.path
+import os
 import subprocess
 import tempfile
 from collections import namedtuple
@@ -40,9 +41,25 @@ from qgis.gui import QgsMessageBar
 
 Transform = namedtuple(
     'Transform',
-    ['name', 'source_name', 'target_name', 'source_proj', 'target_proj', 'source_code', 'target_code', 'grid'],
+    ['name', 'source_name', 'target_name', 'source_proj', 'target_proj', 'source_code', 'target_code', 'grid', 'grid_text'],
     verbose=True
 )
+
+# Get urlretrieve from the right spot. Can be simplified to the second method when we're only Python3.
+try:
+    from urllib import urlretrieve
+except ImportError:
+    from urllib.request import urlretrieve
+
+
+def update_local_file(remote_url, local_file):
+    out_file, result = urlretrieve(remote_url, local_file)
+    try:
+        content_length = result['Content-Length']
+        print("Successfully download file of size {} to {}".format(content_length, local_file))
+    except KeyError:
+        print("Failed to download file with error: {}".format(result['Status']))
+        os.remove(local_file)
 
 
 def log(message, error=False):
@@ -170,14 +187,13 @@ class icsm_ntv2_transformer:
                 grid = source_grid
             elif target_grid:
                 grid = target_grid
-            grid = os.path.basename(grid)
             grid_text = ""
             if grid:
-                grid_text = "using NTv2 grid: '{}'".format(grid)
-                comments = self.GRID_COMMENTS.get(grid)
+                grid_text = "using NTv2 grid: '{}'".format(os.path.basename(grid))
+                comments = self.GRID_COMMENTS.get(os.path.basename(grid))
                 grid_text += "\n\n" + comments
 
-            target_crs.append(Transform(name, source, target, source_proj, target_proj, int(source_code), int(target_code), grid_text))
+            target_crs.append(Transform(name, source, target, source_proj, target_proj, int(source_code), int(target_code), grid, grid_text))
 
         return epsg_string, target_crs
 
@@ -243,7 +259,7 @@ class icsm_ntv2_transformer:
             self.SELECTED_TRANSFORM.source_name,
             self.SELECTED_TRANSFORM.target_name,
             self.SELECTED_TRANSFORM.name,
-            self.SELECTED_TRANSFORM.grid))
+            self.SELECTED_TRANSFORM.grid_text))
 
     def update_infile(self):
         log("Updating in file")
@@ -454,6 +470,7 @@ class icsm_ntv2_transformer:
         parent=None
     ):
         self.dlg = icsm_ntv2_transformerDialog()
+
         self.update_transform_text("Choose an in file to get started.")
 
         icon = QIcon(icon_path)
@@ -525,6 +542,21 @@ class icsm_ntv2_transformer:
 
         # See if OK was pressed
         if result:
+
+            log("Checking whether we need a file.")
+            required_grid = self.SELECTED_TRANSFORM.grid
+            log(required_grid)
+            if not os.path.isfile(required_grid):
+                grid_file = os.path.basename(required_grid)
+                remote_file = "https://github.com/icsm-au/transformation_grids/raw/master/" + grid_file
+                log("Updating local grid file file {} from {}".format(grid_file, remote_file))
+
+                self.update_transform_text("Downloading required grid file, please wait...")
+
+                update_local_file(
+                    remote_file,
+                    required_grid)
+
             log("Starting transform process...")
             self.in_file = self.dlg.in_file_name.text()
             self.out_file = self.dlg.out_file_name.text()

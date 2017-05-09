@@ -1,0 +1,1 @@
+*Note: this is a placeholder to keep this folder around. When you run a transformation, grid files are downloaded to this folder from https://github.com/icsm-au/transformation_grids*
