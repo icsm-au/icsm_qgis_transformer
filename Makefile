@@ -50,7 +50,7 @@ UI_FILES = icsm_qgis_transformer_dialog_base.ui
 
 EXTRAS = metadata.txt icon.png
 
-EXTRA_DIRS =
+GRIDS = grids
 
 COMPILED_RESOURCE_FILES = resources.py
 
@@ -61,7 +61,7 @@ PEP8EXCLUDE=pydev,resources.py,conf.py,third_party,ui
 # Normally you would not need to edit below here
 #################################################
 
-HELP = help/build/html
+HELP = help/build
 
 PLUGIN_UPLOAD = $(c)/plugin_upload.py
 
@@ -110,7 +110,7 @@ deploy: compile doc transcompile
 	cp -vf $(UI_FILES) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vf $(COMPILED_RESOURCE_FILES) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vf $(EXTRAS) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
-	cp -vfr i18n $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
+	cp -vrf $(GRIDS) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(GRIDS)
 	cp -vfr $(HELP) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/help
 	# Copy extra directories if any
   # (temporarily removed)
@@ -123,6 +123,7 @@ dclean:
 	@echo "-----------------------------------"
 	@echo "Removing any compiled python files."
 	@echo "-----------------------------------"
+	find $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME) -iname "*.DS_Store" -delete
 	find $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME) -iname "*.pyc" -delete
 	find $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME) -iname ".git" -prune -exec rm -Rf {} \;
 
@@ -200,7 +201,7 @@ doc:
 	@echo "------------------------------------"
 	@echo "Building documentation using sphinx."
 	@echo "------------------------------------"
-	cd help; make html
+	cd help; make render
 
 pylint:
 	@echo
