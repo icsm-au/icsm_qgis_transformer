@@ -57,13 +57,30 @@ class icsm_ntv2_transformer:
     AGD66GRID = os.path.dirname(__file__) + '/grids/A66_National_13_09_01.gsb'
     AGD84GRID = os.path.dirname(__file__) + '/grids/National_84_02_07_01.gsb'
 
+    # These comments are printed in the dialog that describes the transform to be carried out.
+    GRID_COMMENTS = {
+        'A66_National_13_09_01.gsb': (
+            "NTv2 transformation grid A66_national_13_09_01.gsb [EPSG:1803] provides complete national coverage.\n"
+            "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description"
+        ),
+        'National_84_02_07_01.gsb': (
+            "NTv2 transformation grid National_84_02_07_01.gsb [EPSG:1804] only has coverage for jurisdictions that adopted AGD84 – QLD, SA and WA.\n"
+            "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description."
+        ),
+        'GDA94_GDA2020_conformal_YYYMMDD.gsb': (
+            "NTv2 transformation grid GDA94_GDA2020_conformal_YYYMMDD.gsb [EPSG:????] only applies a conformal transformation between the datums.\n"
+            "See Section 3.6.1 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and when it is appropriate to apply."
+        )
+    }
+
     # EPSGs, in code, name, utm
     available_epsgs = {
         '202': {
             "name": "AGD66 AMG",
             "utm": True,
             "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
-            "grid": AGD66GRID
+            "grid": AGD66GRID,
+            "comments": ""
         },
         '203': {
             "name": "AGD84 AMG",
@@ -154,10 +171,13 @@ class icsm_ntv2_transformer:
             elif target_grid:
                 grid = target_grid
             grid = os.path.basename(grid)
+            grid_text = ""
             if grid:
-                grid = "using NTv2 grid '{}'".format(grid)
+                grid_text = "using NTv2 grid: '{}'".format(grid)
+                comments = self.GRID_COMMENTS.get(grid)
+                grid_text += "\n\n" + comments
 
-            target_crs.append(Transform(name, source, target, source_proj, target_proj, int(source_code), int(target_code), grid))
+            target_crs.append(Transform(name, source, target, source_proj, target_proj, int(source_code), int(target_code), grid_text))
 
         return epsg_string, target_crs
 
@@ -219,7 +239,7 @@ class icsm_ntv2_transformer:
                 self.update_transform_text("Unable to identify the source file's CRS...")
                 return
 
-        self.update_transform_text("Source CRS is {}\nDestination CRS is {}\nTransforming from {} {}".format(
+        self.update_transform_text("Source CRS is {}\nDestination CRS is {}\n\nTransforming from {} {}".format(
             self.SELECTED_TRANSFORM.source_name,
             self.SELECTED_TRANSFORM.target_name,
             self.SELECTED_TRANSFORM.name,
