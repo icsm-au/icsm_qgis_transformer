@@ -22,10 +22,11 @@
 """
 from __future__ import print_function
 
-import os.path
 import os
+import os.path
 import subprocess
 import tempfile
+import webbrowser
 from collections import namedtuple
 
 from gdalconst import GA_ReadOnly
@@ -517,12 +518,18 @@ class icsm_ntv2_transformer:
         # remove the toolbar
         del self.toolbar
 
+    def help_pressed(self):
+        help_file = 'file:' + os.path.dirname(__file__) + '/help/icsm_ntv2_transformer_docs.pdf'
+        log("Help button pressed. Opening {}".format(help_file))
+        webbrowser.open_new(help_file)
+
     def run(self):
         """Run method that performs all the real work"""
 
         # Set up the signals.
         if not self.dialog_initialised:
             QObject.connect(self.dlg.in_file_browse, SIGNAL("clicked()"), self.browse_infiles)
+            QObject.connect(self.dlg.help_button, SIGNAL("clicked()"), self.help_pressed)
             QObject.connect(self.dlg.in_file_name, SIGNAL("textChanged(QString)"), self.update_infile)
             QObject.connect(self.dlg.out_file_browse, SIGNAL("clicked()"), self.browse_outfiles)
             QObject.connect(self.dlg.out_crs_picker, SIGNAL("currentIndexChanged(int)"), self.transform_changed)
@@ -533,16 +540,8 @@ class icsm_ntv2_transformer:
         # Run the dialog event loop
         result = self.dlg.exec_()
 
-        # TODO: Make this work
-        help_pressed = False
-        if help_pressed:
-            help_file = 'Example'
-            subprocess.Popen([help_file], shell=True)
-            log("Not implemented.")
-
         # See if OK was pressed
         if result:
-
             log("Checking whether we need a file.")
             required_grid = self.SELECTED_TRANSFORM.grid
             log(required_grid)
