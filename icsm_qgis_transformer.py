@@ -78,15 +78,15 @@ class icsm_ntv2_transformer:
     # These comments are printed in the dialog that describes the transform to be carried out.
     GRID_COMMENTS = {
         'A66_National_13_09_01.gsb': (
-            "NTv2 transformation grid A66_national_13_09_01.gsb [EPSG:1803] provides complete national coverage.\n"
-            "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description"
+            "NTv2 transformation grid A66_national_13_09_01.gsb [EPSG:1803] <b>provides complete national coverage.</b><br>"
+            "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description."
         ),
         'National_84_02_07_01.gsb': (
-            "NTv2 transformation grid National_84_02_07_01.gsb [EPSG:1804] only has coverage for jurisdictions that adopted AGD84 – QLD, SA and WA.\n"
+            "NTv2 transformation grid National_84_02_07_01.gsb [EPSG:1804] <b>only has coverage for jurisdictions that adopted AGD84 – QLD, SA and WA.</b><br>"
             "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description."
         ),
         'GDA94_GDA2020_conformal_YYYMMDD.gsb': (
-            "NTv2 transformation grid GDA94_GDA2020_conformal_YYYMMDD.gsb [EPSG:????] only applies a conformal transformation between the datums.\n"
+            "NTv2 transformation grid GDA94_GDA2020_conformal_YYYMMDD.gsb [EPSG:????] <b>only applies a conformal transformation between the datums.</b><br>"
             "See Section 3.6.1 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and when it is appropriate to apply."
         )
     }
@@ -113,19 +113,19 @@ class icsm_ntv2_transformer:
             "grid": None
         },
         '4202': {
-            "name": "AGD66 LonLat",
+            "name": "AGD66 Latitude and Longitude",
             "utm": False,
             "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
             "grid": AGD66GRID
         },
         '4203': {
-            "name": "AGD84 LonLat",
+            "name": "AGD84 Latitude and Longitude",
             "utm": False,
             "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD84GRID + ' +wktext',
             "grid": AGD84GRID
         },
         '4283': {
-            "name": "GDA94 LonLat",
+            "name": "GDA94 Latitude and Longitude",
             "utm": False,
             "proj": None,
             "grid": None
@@ -192,14 +192,14 @@ class icsm_ntv2_transformer:
             if grid:
                 grid_text = "using NTv2 grid: '{}'".format(os.path.basename(grid))
                 comments = self.GRID_COMMENTS.get(os.path.basename(grid))
-                grid_text += "\n\n" + comments
+                grid_text += "<br><br>" + comments
 
             target_crs.append(Transform(name, source, target, source_proj, target_proj, int(source_code), int(target_code), grid, grid_text))
 
         return epsg_string, target_crs
 
     def update_transform_text(self, text):
-        self.dlg.transform_text.setPlainText(text)
+        self.dlg.transform_text.setHtml(text)
 
     def transform_changed(self):
         self.validate_source_transform()
@@ -256,7 +256,7 @@ class icsm_ntv2_transformer:
                 self.update_transform_text("Unable to identify the source file's CRS...")
                 return
 
-        self.update_transform_text("Source CRS is {}\nDestination CRS is {}\n\nTransforming from {} {}".format(
+        self.update_transform_text("Source CRS is {}<br>Destination CRS is {}<br><br>Transforming from {} {}".format(
             self.SELECTED_TRANSFORM.source_name,
             self.SELECTED_TRANSFORM.target_name,
             self.SELECTED_TRANSFORM.name,
@@ -305,14 +305,19 @@ class icsm_ntv2_transformer:
             None, "Input File", self.dlg.in_file_name.displayText(), "Any supported filetype (*.*)")
         if newname:
             self.dlg.in_file_name.setText(newname)
-        # self.update_infile()
+        self.update_infile()
 
     def browse_outfiles(self):
         newname = QFileDialog.getSaveFileName(
             None, "Output file", self.dlg.out_file_name.displayText(), "Shapefile or TIFF (*.shp, *.tiff)")
 
         if newname:
-            self.dlg.out_file_name.setText(newname)
+            directory = os.path.dirname(newname)
+            if os.path.isdir(directory):
+                self.dlg.out_file_name.setText(newname)
+            else:
+                directory = os.path.dirname(self.in_file)
+                self.dlg.out_file_name.setText(os.path.join(directory, newname))
 
     def get_epsg(self, layer):
         return layer.crs().authid().split(':')[1]

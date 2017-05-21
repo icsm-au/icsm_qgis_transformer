@@ -29,7 +29,7 @@
     <set>QDialogButtonBox::Cancel|QDialogButtonBox::Ok</set>
    </property>
   </widget>
-  <widget class="QPlainTextEdit" name="transform_text">
+  <widget class="QTextEdit" name="transform_text">
    <property name="enabled">
     <bool>true</bool>
    </property>
@@ -40,9 +40,6 @@
      <width>491</width>
      <height>161</height>
     </rect>
-   </property>
-   <property name="readOnly">
-    <bool>true</bool>
    </property>
   </widget>
   <widget class="QWidget" name="layoutWidget">
