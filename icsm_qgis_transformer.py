@@ -24,7 +24,6 @@ from __future__ import print_function
 
 import os
 import os.path
-import subprocess
 import tempfile
 import webbrowser
 from collections import namedtuple
@@ -52,14 +51,23 @@ try:
 except ImportError:
     from urllib.request import urlretrieve
 
+# This is the GitHub source
+GRID_FILE_SOURCE = "https://github.com/icsm-au/transformation_grids/raw/master/"
+# This is the AWS S3 source
+GRID_FILE_SOURCE = "https://s3-ap-southeast-2.amazonaws.com/transformationgrids/"
+
 
 def update_local_file(remote_url, local_file):
     out_file, result = urlretrieve(remote_url, local_file)
     try:
         content_length = result['Content-Length']
-        print("Successfully download file of size {} to {}".format(content_length, local_file))
+        if content_length < 1000:
+            os.remove(local_file)
+            log("Failed to download file. Please contact support.")
+        else:
+            log("Successfully download file of size {} to {}".format(content_length, local_file))
     except KeyError:
-        print("Failed to download file with error: {}".format(result['Status']))
+        log("Failed to download file with error: {}".format(result['Status']))
         os.remove(local_file)
 
 
@@ -74,6 +82,8 @@ class icsm_ntv2_transformer:
     """QGIS Plugin Implementation."""
     AGD66GRID = os.path.dirname(__file__) + '/grids/A66_National_13_09_01.gsb'
     AGD84GRID = os.path.dirname(__file__) + '/grids/National_84_02_07_01.gsb'
+    GDA2020CONF = os.path.dirname(__file__) + '/grids/GDA94_GDA2020_conformal.gsb'
+    GDA2020CONF_DIST = os.path.dirname(__file__) + '/grids/GDA94_GDA2020_conformal_and_distortion.gsb'
 
     # These comments are printed in the dialog that describes the transform to be carried out.
     GRID_COMMENTS = {
@@ -85,8 +95,14 @@ class icsm_ntv2_transformer:
             "NTv2 transformation grid National_84_02_07_01.gsb [EPSG:1804] <b>only has coverage for jurisdictions that adopted AGD84 – QLD, SA and WA.</b><br>"
             "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description."
         ),
-        'GDA94_GDA2020_conformal_YYYMMDD.gsb': (
-            "NTv2 transformation grid GDA94_GDA2020_conformal_YYYMMDD.gsb [EPSG:????] <b>only applies a conformal transformation between the datums.</b><br>"
+        'GDA94_GDA2020_conformal.gsb': (
+            "<b>WARNING! Currently only covers Tasmania.</b><br>"
+            "NTv2 transformation grid GDA94_GDA2020_conformal.gsb [EPSG:????] <b>only applies a conformal transformation between the datums.</b><br>"
+            "See Section 3.6.1 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and when it is appropriate to apply."
+        ),
+        'GDA94_GDA2020_conformal_and_distortion.gsb': (
+            "<b>WARNING! Currently only covers Tasmania.</b>"
+            "NTv2 transformation grid GDA94_GDA2020_conformal_and_distortion.gsb [EPSG:????] <b>applies a conformal plus distrortiont ransformation between the datums.</b><br>"
             "See Section 3.6.1 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and when it is appropriate to apply."
         )
     }
@@ -94,23 +110,35 @@ class icsm_ntv2_transformer:
     # EPSGs, in code, name, utm
     available_epsgs = {
         '202': {
-            "name": "AGD66 AMG",
+            "name": "AGD66 / AMG",
             "utm": True,
             "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
             "grid": AGD66GRID,
             "comments": ""
         },
         '203': {
-            "name": "AGD84 AMG",
+            "name": "AGD84 / AMG",
             "utm": True,
             "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD84GRID + ' +wktext',
             "grid": AGD84GRID
         },
         '283': {
-            "name": "GDA94 MGA",
+            "name": "GDA94 / MGA",
             'utm': True,
             "proj": None,
             "grid": None
+        },
+        '78c': {
+            "name": "GDA2020 / MGA (Conformal only)",
+            'utm': True,
+            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
+            "grid": GDA2020CONF
+        },
+        '78d': {
+            "name": "GDA2020 / MGA (Conformal and distortion)",
+            'utm': True,
+            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
+            "grid": GDA2020CONF_DIST
         },
         '4202': {
             "name": "AGD66 Latitude and Longitude",
@@ -129,7 +157,19 @@ class icsm_ntv2_transformer:
             "utm": False,
             "proj": None,
             "grid": None
-        }
+        },
+        '7844c': {
+            "name": "GDA94 Latitude and Longitude (Conformal only)",
+            "utm": False,
+            "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
+            "grid": GDA2020CONF
+        },
+        '7844d': {
+            "name": "GDA94 Latitude and Longitude (Conformal and distortion)",
+            "utm": False,
+            "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
+            "grid": GDA2020CONF_DIST
+        },
     }
 
     # Supported Transforms. FROM_CRS: [name, from, to, zone]
@@ -146,18 +186,22 @@ class icsm_ntv2_transformer:
         # UTM
         ['202', ['283']],
         ['203', ['283']],
-        ['283', ['202', '203']],
+        ['283', ['202', '203', '78c', '78d']],
+        ['78c', ['283']],
+        ['78d', ['283']],
         # LonLat
         ['4202', ['4283']],
         ['4203', ['4283']],
-        ['4283', ['4202', '4203']]
+        ['4283', ['4202', '4203', '7844c', '7844d']],
+        ['7844c', ['4283']],
+        ['7844d', ['4283']]
     ]
 
     def build_transform(self, in_info, in_crs, zone=False):
         source_name = in_info['name']
         source_proj = in_info['proj']
         source_grid = in_info['grid']
-        source_epsg = in_crs[0]
+        source_epsg = in_crs[0].replace('c', '').replace('d', '')
         source_target_epsgs = in_crs[1]
         zone_string = ""
         if zone:
@@ -174,7 +218,10 @@ class icsm_ntv2_transformer:
         for target_epsg in source_target_epsgs:
             target_name = self.available_epsgs[target_epsg]['name']
             target_grid = self.available_epsgs[target_epsg]['grid']
-            target_code = '{epsg}{zone}'.format(epsg=target_epsg, zone=zone_string)
+            target_code = '{epsg}{zone}'.format(
+                epsg=target_epsg.replace('c', '').replace('d', ''),
+                zone=zone_string
+            )
             name = source_name.split(' ')[0] + ' to ' + target_name.split(' ')[0]
             source = name_string.format(name=source_name, code=source_code)
             target = name_string.format(name=target_name, code=target_code)
@@ -457,6 +504,10 @@ class icsm_ntv2_transformer:
             else:
                 # Just process this one, no zones
                 transform_label, transforms = self.build_transform(epsg_info, source_crs)
+                # If there's more than one transform source that is the same, handle it here
+                existing_transforms = self.SUPPORTED_TRANSFORMS.get(transform_label)
+                if existing_transforms:
+                    transforms.extend(existing_transforms)
                 self.SUPPORTED_TRANSFORMS[transform_label] = transforms
 
     # noinspection PyMethodMayBeStatic
@@ -552,14 +603,12 @@ class icsm_ntv2_transformer:
             log(required_grid)
             if not os.path.isfile(required_grid):
                 grid_file = os.path.basename(required_grid)
-                remote_file = "https://github.com/icsm-au/transformation_grids/raw/master/" + grid_file
+                remote_file = GRID_FILE_SOURCE + grid_file
                 log("Updating local grid file file {} from {}".format(grid_file, remote_file))
 
                 self.update_transform_text("Downloading required grid file, please wait...")
 
-                update_local_file(
-                    remote_file,
-                    required_grid)
+                update_local_file(remote_file, required_grid)
 
             log("Starting transform process...")
             self.in_file = self.dlg.in_file_name.text()
