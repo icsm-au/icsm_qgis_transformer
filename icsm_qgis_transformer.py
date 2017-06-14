@@ -24,7 +24,6 @@ from __future__ import print_function
 
 import os
 import os.path
-import subprocess
 import tempfile
 import webbrowser
 from collections import namedtuple
@@ -34,10 +33,11 @@ from osgeo import gdal, osr
 
 from icsm_qgis_transformer_dialog import icsm_ntv2_transformerDialog
 from PyQt4.QtCore import (SIGNAL, QCoreApplication, QObject, QSettings,
-                          QTranslator, qVersion)
+                          QTranslator, qVersion, QFileInfo)
 from PyQt4.QtGui import QAction, QFileDialog, QIcon
 from qgis.core import (QgsCoordinateReferenceSystem, QgsMessageLog,
-                       QgsVectorFileWriter, QgsVectorLayer)
+                       QgsVectorFileWriter, QgsVectorLayer, QgsRasterLayer,
+                       QgsMapLayerRegistry)
 from qgis.gui import QgsMessageBar
 
 Transform = namedtuple(
@@ -82,7 +82,7 @@ class icsm_ntv2_transformer:
             "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description."
         ),
         'National_84_02_07_01.gsb': (
-            "NTv2 transformation grid National_84_02_07_01.gsb [EPSG:1804] <b>only has coverage for jurisdictions that adopted AGD84 – QLD, SA and WA.</b><br>"
+            r"NTv2 transformation grid National_84_02_07_01.gsb [EPSG:1804] <b>only has coverage for jurisdictions that adopted AGD84 - QLD, SA and WA.</b><br>"
             "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description."
         ),
         'GDA94_GDA2020_conformal_YYYMMDD.gsb': (
@@ -368,6 +368,11 @@ class icsm_ntv2_transformer:
             log("Success")
             self.iface.messageBar().pushMessage(
                 "Success", "Transformation complete.", level=QgsMessageBar.INFO, duration=3)
+            if self.dlg.TOCcheckBox.isChecked():
+                basename = QFileInfo(out_file).baseName()
+                vlayer = QgsVectorLayer(out_file, unicode(basename), "ogr")
+                if vlayer.isValid():
+                    QgsMapLayerRegistry.instance().addMapLayers([vlayer])
         else:
             log("Error writing vector, code: {}".format(str(error)))
             self.iface.messageBar().pushMessage(
@@ -411,6 +416,13 @@ class icsm_ntv2_transformer:
             dst_ds = None
             self.iface.messageBar().pushMessage(
                 "Success", "Transformation complete.", level=QgsMessageBar.INFO, duration=3)
+            if self.dlg.TOCcheckBox.isChecked():
+                basename = QFileInfo(out_file).baseName()
+                rlayer = QgsRasterLayer(out_file, unicode(basename))
+                if rlayer.isValid():
+                    QgsMapLayerRegistry.instance().addMapLayers([rlayer])
+                else:
+                    log("rlayer invalid")
         except Exception as e:
             self.iface.messageBar().pushMessage(
                 "Error", "Transformation failed, please check your configuration. Error was: {}".format(e), level=QgsMessageBar.CRITICAL, duration=3)
