@@ -373,6 +373,8 @@ class icsm_ntv2_transformer:
                 vlayer = QgsVectorLayer(out_file, unicode(basename), "ogr")
                 if vlayer.isValid():
                     QgsMapLayerRegistry.instance().addMapLayers([vlayer])
+                else:
+                    log("vlayer invalid")
         else:
             log("Error writing vector, code: {}".format(str(error)))
             self.iface.messageBar().pushMessage(
