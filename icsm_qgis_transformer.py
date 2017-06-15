@@ -131,13 +131,13 @@ class icsm_ntv2_transformer:
         '78c': {
             "name": "GDA2020 / MGA (Conformal only)",
             'utm': True,
-            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
+            "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +units=m +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
             "grid": GDA2020CONF
         },
         '78d': {
             "name": "GDA2020 / MGA (Conformal and distortion)",
             'utm': True,
-            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
+            "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +units=m +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
             "grid": GDA2020CONF_DIST
         },
         '4202': {
@@ -161,13 +161,13 @@ class icsm_ntv2_transformer:
         '7844c': {
             "name": "GDA94 Latitude and Longitude (Conformal only)",
             "utm": False,
-            "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
+            "proj": '+proj=longlat +ellps=GRS80 +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
             "grid": GDA2020CONF
         },
         '7844d': {
             "name": "GDA94 Latitude and Longitude (Conformal and distortion)",
             "utm": False,
-            "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
+            "proj": '+proj=longlat +ellps=GRS80 +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
             "grid": GDA2020CONF_DIST
         },
     }
