@@ -123,6 +123,19 @@
     <string>help</string>
    </property>
   </widget>
+  <widget class="QCheckBox" name="TOCcheckBox">
+   <property name="geometry">
+    <rect>
+     <x>30</x>
+     <y>230</y>
+     <width>401</width>
+     <height>17</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Open output after running</string>
+   </property>
+  </widget>
  </widget>
  <resources/>
  <connections>
