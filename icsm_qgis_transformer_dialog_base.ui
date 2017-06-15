@@ -128,12 +128,12 @@
     <rect>
      <x>30</x>
      <y>230</y>
-     <width>121</width>
+     <width>401</width>
      <height>17</height>
     </rect>
    </property>
    <property name="text">
-    <string>Add output to TOC</string>
+    <string>Open output after running</string>
    </property>
   </widget>
  </widget>
