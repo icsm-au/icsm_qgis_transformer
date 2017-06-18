@@ -22,6 +22,7 @@
 """
 from __future__ import print_function
 
+import json
 import os
 import os.path
 import tempfile
@@ -108,14 +109,13 @@ class icsm_ntv2_transformer:
         )
     }
 
-    # EPSGs, in code, name, utm
+    # EPSGs, in code: name, utm, proj, grid
     available_epsgs = {
         '202': {
             "name": "AGD66 / AMG",
             "utm": True,
             "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
-            "grid": AGD66GRID,
-            "comments": ""
+            "grid": AGD66GRID
         },
         '203': {
             "name": "AGD84 / AMG",
@@ -129,17 +129,23 @@ class icsm_ntv2_transformer:
             "proj": None,
             "grid": None
         },
-        '78c': {
-            "name": "GDA2020 / MGA (Conformal only)",
+        '283c': {
+            "name": "GDA94 / MGA (Conformal only)",
             'utm': True,
             "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +units=m +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
             "grid": GDA2020CONF
         },
-        '78d': {
-            "name": "GDA2020 / MGA (Conformal and distortion)",
+        '283d': {
+            "name": "GDA94 / MGA (Conformal and distortion)",
             'utm': True,
             "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +units=m +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
             "grid": GDA2020CONF_DIST
+        },
+        '327': {
+            "name": "GDA2020 / MGA",
+            'utm': True,
+            "proj": None,
+            "grid": None
         },
         '4202': {
             "name": "AGD66 Latitude and Longitude",
@@ -159,18 +165,24 @@ class icsm_ntv2_transformer:
             "proj": None,
             "grid": None
         },
-        '7844c': {
+        '4283c': {
             "name": "GDA94 Latitude and Longitude (Conformal only)",
             "utm": False,
             "proj": '+proj=longlat +ellps=GRS80 +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
             "grid": GDA2020CONF
         },
-        '7844d': {
+        '4283d': {
             "name": "GDA94 Latitude and Longitude (Conformal and distortion)",
             "utm": False,
             "proj": '+proj=longlat +ellps=GRS80 +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
             "grid": GDA2020CONF_DIST
         },
+        '7844': {
+            "name": "GDA2020 Latitude and Longitude",
+            "utm": False,
+            "proj": None,
+            "grid": None
+        }
     }
 
     # Supported Transforms. FROM_CRS: [name, from, to, zone]
@@ -187,15 +199,17 @@ class icsm_ntv2_transformer:
         # UTM
         ['202', ['283']],
         ['203', ['283']],
-        ['283', ['202', '203', '78c', '78d']],
-        ['78c', ['283']],
-        ['78d', ['283']],
+        ['283', ['202', '203']],
+        # ['283c', ['78']],
+        ['283d', ['327']],
+        ['327', ['283d']],
         # LonLat
         ['4202', ['4283']],
         ['4203', ['4283']],
-        ['4283', ['4202', '4203', '7844c', '7844d']],
-        ['7844c', ['4283']],
-        ['7844d', ['4283']]
+        ['4283', ['4202', '4203']],
+        # ['4283c', ['7844']],
+        ['4283d', ['7844']],
+        ['7844', ['4283d']],
     ]
 
     def build_transform(self, in_info, in_crs, zone=False):
@@ -218,6 +232,7 @@ class icsm_ntv2_transformer:
         target_crs = []
         for target_epsg in source_target_epsgs:
             target_name = self.available_epsgs[target_epsg]['name']
+            # log("Working on {} with {}".format(source_name, target_name))
             target_grid = self.available_epsgs[target_epsg]['grid']
             target_code = '{epsg}{zone}'.format(
                 epsg=target_epsg.replace('c', '').replace('d', ''),
@@ -245,6 +260,29 @@ class icsm_ntv2_transformer:
             target_crs.append(Transform(name, source, target, source_proj, target_proj, int(source_code), int(target_code), grid, grid_text))
 
         return epsg_string, target_crs
+
+    def prepare_transforms(self):
+        for source_crs in self.transformations:
+            log("Processing {}".format(source_crs))
+            epsg_info = self.available_epsgs[source_crs[0]]
+            if epsg_info['utm']:
+                # This is a UTM crs, so process all the codes
+                for zone in self.available_zones:
+                    transform_label, transforms = self.build_transform(epsg_info, source_crs, zone=zone)
+                    # If there's more than one transform source that is the same, handle it here
+                    existing_transforms = self.SUPPORTED_TRANSFORMS.get(transform_label)
+                    if existing_transforms:
+                        transforms.extend(existing_transforms)
+
+                    self.SUPPORTED_TRANSFORMS[transform_label] = transforms
+            else:
+                # Just process this one, no zones
+                transform_label, transforms = self.build_transform(epsg_info, source_crs)
+                # If there's more than one transform source that is the same, handle it here
+                existing_transforms = self.SUPPORTED_TRANSFORMS.get(transform_label)
+                if existing_transforms:
+                    transforms.extend(existing_transforms)
+                self.SUPPORTED_TRANSFORMS[transform_label] = transforms
 
     def update_transform_text(self, text):
         self.dlg.transform_text.setHtml(text)
@@ -509,21 +547,7 @@ class icsm_ntv2_transformer:
 
         self.in_file_type = None
 
-        for source_crs in self.transformations:
-            epsg_info = self.available_epsgs[source_crs[0]]
-            if epsg_info['utm']:
-                # This is a UTM crs, so process all the codes
-                for zone in self.available_zones:
-                    transform_label, transforms = self.build_transform(epsg_info, source_crs, zone=zone)
-                    self.SUPPORTED_TRANSFORMS[transform_label] = transforms
-            else:
-                # Just process this one, no zones
-                transform_label, transforms = self.build_transform(epsg_info, source_crs)
-                # If there's more than one transform source that is the same, handle it here
-                existing_transforms = self.SUPPORTED_TRANSFORMS.get(transform_label)
-                if existing_transforms:
-                    transforms.extend(existing_transforms)
-                self.SUPPORTED_TRANSFORMS[transform_label] = transforms
+        self.prepare_transforms()
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -649,3 +673,6 @@ class icsm_ntv2_transformer:
             else:
                 self.iface.messageBar().pushMessage(
                     "Error", "Invalid settings...", level=QgsMessageBar.CRITICAL, duration=3)
+            self.update_transform_text("Finished processing...")
+            # Keep the display open (maybe)
+            self.run()

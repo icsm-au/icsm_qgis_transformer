@@ -135,6 +135,9 @@
    <property name="text">
     <string>Open output after running</string>
    </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
   </widget>
  </widget>
  <resources/>
