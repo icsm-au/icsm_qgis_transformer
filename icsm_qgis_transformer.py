@@ -185,11 +185,14 @@ class icsm_ntv2_transformer:
         }
     }
 
-    # Supported Transforms. FROM_CRS: [name, from, to, zone]
+    # Supported Transforms.
     SUPPORTED_TRANSFORMS = {
         # Transform('name', 'source_name', 'target_name', 'source_proj', 'target_proj', 'grid')
     }
     TRANSFORMS = []
+
+    # This gets populated with a transform when a valid dataset is loaded.
+    SELECTED_TRANSFORM = None
 
     # Range makes a list from 49 to 56
     available_zones = range(49, 57)
@@ -263,7 +266,6 @@ class icsm_ntv2_transformer:
 
     def prepare_transforms(self):
         for source_crs in self.transformations:
-            log("Processing {}".format(source_crs))
             epsg_info = self.available_epsgs[source_crs[0]]
             if epsg_info['utm']:
                 # This is a UTM crs, so process all the codes
@@ -349,7 +351,6 @@ class icsm_ntv2_transformer:
             self.SELECTED_TRANSFORM.grid_text))
 
     def update_infile(self):
-        log("Updating in file")
         newname = self.dlg.in_file_name.text()
 
         # Clear out dialogs
@@ -357,10 +358,17 @@ class icsm_ntv2_transformer:
         self.in_file_crs = None
         self.dlg.out_crs_picker.clear()
 
+        if not os.path.isfile(newname):
+            log("There's no file at {}. Ignoring.".format(newname))
+            return
+        else:
+            log("Updating in file")
+
         fail = False
         layer = QgsVectorLayer(newname, 'in layer', 'ogr')
         if layer.isValid():
             # We have a vector!
+            log("Recognised vector layer")
             self.in_file_type = 'VECTOR'
             in_file_crs = layer.crs().authid()
             self.validate_source_transform(in_file_crs)
@@ -371,12 +379,15 @@ class icsm_ntv2_transformer:
                 fail = True
             else:
                 # We have a raster!
+                log("Recognised raster layer")
                 self.in_file_type = 'RASTER'
-                prj = dataset.GetProjection()
-                crs = QgsCoordinateReferenceSystem(prj)
-                log(crs.toProj4())
-                in_file_crs = crs.authid()
+
+                layer = QgsRasterLayer(newname, 'in raster')
+                in_file_crs = layer.crs().authid()
+                layer = None
+
                 self.validate_source_transform(in_file_crs)
+
                 self.in_dataset = dataset
         if fail:
             self.iface.messageBar().pushMessage(
@@ -391,7 +402,7 @@ class icsm_ntv2_transformer:
             None, "Input File", self.dlg.in_file_name.displayText(), "Any supported filetype (*.*)")
         if newname:
             self.dlg.in_file_name.setText(newname)
-        self.update_infile()
+        # self.update_infile()
 
     def browse_outfiles(self):
         newname = QFileDialog.getSaveFileName(
@@ -637,6 +648,11 @@ class icsm_ntv2_transformer:
 
         # See if OK was pressed
         if result:
+            if not self.SELECTED_TRANSFORM:
+                log("No transform available, closing.")
+                self.iface.messageBar().pushMessage(
+                    "Error", "No transformation available...", level=QgsMessageBar.CRITICAL, duration=3)
+                return
             log("Checking whether we need a file.")
             required_grid = self.SELECTED_TRANSFORM.grid
             log(required_grid)
