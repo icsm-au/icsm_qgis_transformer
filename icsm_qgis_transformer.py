@@ -43,7 +43,6 @@ from qgis.gui import QgsMessageBar
 Transform = namedtuple(
     'Transform',
     ['name', 'source_name', 'target_name', 'source_proj', 'target_proj', 'source_code', 'target_code', 'grid', 'grid_text'],
-    verbose=True
 )
 
 # Get urlretrieve from the right spot. Can be simplified to the second method when we're only Python3.
@@ -103,7 +102,7 @@ class icsm_ntv2_transformer:
         ),
         'GDA94_GDA2020_conformal_and_distortion.gsb': (
             "<b>WARNING! Currently only covers Tasmania.</b>"
-            "NTv2 transformation grid GDA94_GDA2020_conformal_and_distortion.gsb [EPSG:????] <b>applies a conformal plus distrortiont ransformation between the datums.</b><br>"
+            "NTv2 transformation grid GDA94_GDA2020_conformal_and_distortion.gsb [EPSG:????] <b>applies a conformal plus distrortion transformation between the datums.</b><br>"
             "See Section 3.6.1 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and when it is appropriate to apply."
         )
     }
@@ -140,7 +139,7 @@ class icsm_ntv2_transformer:
             "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +units=m +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
             "grid": GDA2020CONF_DIST
         },
-        '327': {
+        '78': {
             "name": "GDA2020 / MGA",
             'utm': True,
             "proj": None,
@@ -203,8 +202,8 @@ class icsm_ntv2_transformer:
         ['203', ['283']],
         ['283', ['202', '203']],
         # ['283c', ['78']],
-        ['283d', ['327']],
-        ['327', ['283d']],
+        ['283d', ['78']],
+        ['78', ['283d']],
         # LonLat
         ['4202', ['4283']],
         ['4203', ['4283']],
@@ -529,19 +528,6 @@ class icsm_ntv2_transformer:
         self.iface = iface
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
-        # initialize locale
-        locale = QSettings().value('locale/userLocale')[0:2]
-        locale_path = os.path.join(
-            self.plugin_dir,
-            'i18n',
-            'icsm_ntv2_transformer_{}.qm'.format(locale))
-
-        if os.path.exists(locale_path):
-            self.translator = QTranslator()
-            self.translator.load(locale_path)
-
-            if qVersion() > '4.3.3':
-                QCoreApplication.installTranslator(self.translator)
 
         # Declare instance attributes
         self.actions = []
@@ -557,6 +543,12 @@ class icsm_ntv2_transformer:
         self.in_file_type = None
 
         self.prepare_transforms()
+
+        # This build the list of available transforms.
+        self.prepare_transforms()
+
+        # This changes the settings (a bit rude of us) to prompt for unknown CRSs
+        QSettings().setValue("/Projections/defaultBehaviour", "prompt")
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
