@@ -22,7 +22,6 @@
 """
 from __future__ import print_function
 
-import json
 import os
 import os.path
 import tempfile
@@ -33,12 +32,12 @@ from gdalconst import GA_ReadOnly
 from osgeo import gdal, osr
 
 from icsm_qgis_transformer_dialog import icsm_ntv2_transformerDialog
-from PyQt4.QtCore import (SIGNAL, QCoreApplication, QObject, QSettings,
-                          QTranslator, qVersion, QFileInfo)
+from PyQt4.QtCore import (SIGNAL, QCoreApplication, QFileInfo, QObject,
+                          QSettings, QTranslator, qVersion)
 from PyQt4.QtGui import QAction, QFileDialog, QIcon
-from qgis.core import (QgsCoordinateReferenceSystem, QgsMessageLog,
-                       QgsVectorFileWriter, QgsVectorLayer, QgsRasterLayer,
-                       QgsMapLayerRegistry)
+from qgis.core import (QgsCoordinateReferenceSystem, QgsMapLayerRegistry,
+                       QgsMessageLog, QgsRasterLayer, QgsVectorFileWriter,
+                       QgsVectorLayer)
 from qgis.gui import QgsMessageBar
 
 Transform = namedtuple(
@@ -94,7 +93,7 @@ class icsm_ntv2_transformer:
             "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description."
         ),
         'National_84_02_07_01.gsb': (
-            r"NTv2 transformation grid National_84_02_07_01.gsb [EPSG:1804] <b>only has coverage for jurisdictions that adopted AGD84 - QLD, SA and WA.</b><br>"
+            "NTv2 transformation grid National_84_02_07_01.gsb [EPSG:1804] <b>only has coverage for jurisdictions that adopted AGD84 - QLD, SA and WA.</b><br>"
             "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description."
         ),
         'GDA94_GDA2020_conformal.gsb': (
@@ -185,7 +184,7 @@ class icsm_ntv2_transformer:
         }
     }
 
-    # Supported Transforms.
+    # Supported Transforms. This is loaded dynamically because it's big.
     SUPPORTED_TRANSFORMS = {
         # Transform('name', 'source_name', 'target_name', 'source_proj', 'target_proj', 'grid')
     }
@@ -402,7 +401,6 @@ class icsm_ntv2_transformer:
             None, "Input File", self.dlg.in_file_name.displayText(), "Any supported filetype (*.*)")
         if newname:
             self.dlg.in_file_name.setText(newname)
-        # self.update_infile()
 
     def browse_outfiles(self):
         newname = QFileDialog.getSaveFileName(
@@ -467,7 +465,7 @@ class icsm_ntv2_transformer:
                 "Success", "Transformation complete.", level=QgsMessageBar.INFO, duration=3)
             if self.dlg.TOCcheckBox.isChecked():
                 basename = QFileInfo(out_file).baseName()
-                vlayer = QgsVectorLayer(out_file, unicode(basename), "ogr")
+                vlayer = QgsVectorLayer(out_file, str(basename), "ogr")
                 if vlayer.isValid():
                     QgsMapLayerRegistry.instance().addMapLayers([vlayer])
                 else:
@@ -517,7 +515,7 @@ class icsm_ntv2_transformer:
                 "Success", "Transformation complete.", level=QgsMessageBar.INFO, duration=3)
             if self.dlg.TOCcheckBox.isChecked():
                 basename = QFileInfo(out_file).baseName()
-                rlayer = QgsRasterLayer(out_file, unicode(basename))
+                rlayer = QgsRasterLayer(out_file, str(basename))
                 if rlayer.isValid():
                     QgsMapLayerRegistry.instance().addMapLayers([rlayer])
                 else:

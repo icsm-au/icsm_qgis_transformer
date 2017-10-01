@@ -112,8 +112,9 @@ deploy: compile doc transcompile
 	cp -vf $(EXTRAS) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vfr $(HELP) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/help
 	# Copy extra directories if any
-	rm -r $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(GRIDS)
+	-rm -r $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(GRIDS)
 	cp -vrf $(GRIDS) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(GRIDS)
+	-rm $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(GRIDS)/*.gsb
 
 # The dclean target removes compiled python files from plugin directory
 # also deletes any .git entry
