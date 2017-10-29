@@ -58,7 +58,12 @@ GRID_FILE_SOURCE = "https://s3-ap-southeast-2.amazonaws.com/transformationgrids/
 
 
 def update_local_file(remote_url, local_file):
-    out_file, result = urlretrieve(remote_url, local_file)
+    try:
+        out_file, result = urlretrieve(remote_url, local_file)
+    except IOError:
+        log("Failed to download .GSB file.", True)
+        return False
+
     try:
         content_length = result['Content-Length']
         if content_length < 1000:
@@ -69,6 +74,7 @@ def update_local_file(remote_url, local_file):
     except KeyError:
         log("Failed to download file with error: {}".format(result['Status']))
         os.remove(local_file)
+    return True
 
 
 def log(message, error=False):
@@ -112,13 +118,13 @@ class icsm_ntv2_transformer:
         '202': {
             "name": "AGD66 / AMG",
             "utm": True,
-            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
+            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +towgs84=-117.808,-51.536,137.784,0.303,0.446,0.234,-0.29 +units=m +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
             "grid": AGD66GRID
         },
         '203': {
             "name": "AGD84 / AMG",
             "utm": True,
-            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +units=m +no_defs +nadgrids=' + AGD84GRID + ' +wktext',
+            "proj": '+proj=utm +zone={zone} +south +ellps=aust_SA +towgs84=-134,-48,149,0,0,0,0 +units=m +no_defs +nadgrids=' + AGD84GRID + ' +wktext',
             "grid": AGD84GRID
         },
         '283': {
@@ -130,13 +136,13 @@ class icsm_ntv2_transformer:
         '283c': {
             "name": "GDA94 / MGA (Conformal only)",
             'utm': True,
-            "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +units=m +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
+            "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
             "grid": GDA2020CONF
         },
         '283d': {
-            "name": "GDA94 / MGA (Conformal and distortion)",
+            "name": "GDA94 / MGA",
             'utm': True,
-            "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +units=m +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
+            "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
             "grid": GDA2020CONF_DIST
         },
         '78': {
@@ -148,13 +154,13 @@ class icsm_ntv2_transformer:
         '4202': {
             "name": "AGD66 Latitude and Longitude",
             "utm": False,
-            "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
+            "proj": '+proj=longlat +ellps=aust_SA +towgs84=-117.808,-51.536,137.784,0.303,0.446,0.234,-0.29 +no_defs +nadgrids=' + AGD66GRID + ' +wktext',
             "grid": AGD66GRID
         },
         '4203': {
             "name": "AGD84 Latitude and Longitude",
             "utm": False,
-            "proj": '+proj=longlat +ellps=aust_SA +no_defs +nadgrids=' + AGD84GRID + ' +wktext',
+            "proj": '+proj=longlat +ellps=aust_SA +no_defs +towgs84=-134,-48,149,0,0,0,0 +nadgrids=' + AGD84GRID + ' +wktext',
             "grid": AGD84GRID
         },
         '4283': {
@@ -166,13 +172,13 @@ class icsm_ntv2_transformer:
         '4283c': {
             "name": "GDA94 Latitude and Longitude (Conformal only)",
             "utm": False,
-            "proj": '+proj=longlat +ellps=GRS80 +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
+            "proj": '+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +nadgrids=' + GDA2020CONF + ' +wktext',
             "grid": GDA2020CONF
         },
         '4283d': {
-            "name": "GDA94 Latitude and Longitude (Conformal and distortion)",
+            "name": "GDA94 Latitude and Longitude",
             "utm": False,
-            "proj": '+proj=longlat +ellps=GRS80 +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
+            "proj": '+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
             "grid": GDA2020CONF_DIST
         },
         '7844': {
@@ -402,28 +408,25 @@ class icsm_ntv2_transformer:
             self.dlg.in_file_name.setText(newname)
 
     def browse_outfiles(self):
+        log("Browsing out files")
         newname = QFileDialog.getSaveFileName(
-            None, "Output file", self.dlg.out_file_name.displayText(), "Shapefile or TIFF (*.shp, *.tiff)")
+            None, "Output file", self.dlg.out_file_name.displayText(), "Shapefile or TIFF (*.shp *.tiff)")
 
         if newname:
-            directory = os.path.dirname(newname)
-            if os.path.isdir(directory):
-                self.dlg.out_file_name.setText(newname)
-            else:
-                directory = os.path.dirname(self.in_file)
-                self.dlg.out_file_name.setText(os.path.join(directory, newname))
+            log("Out file newname {}".format(newname))
+            self.dlg.out_file_name.setText(newname)
 
     def get_epsg(self, layer):
         return layer.crs().authid().split(':')[1]
 
     def transform_vector(self, out_file):
-        log("Transforming")
+        log("Transforming file to: {}".format(out_file))
         layer = self.in_dataset
 
         source_crs = QgsCoordinateReferenceSystem()
         if self.SELECTED_TRANSFORM.source_proj:
             log("Source from proj")
-            log(self.SELECTED_TRANSFORM.source_proj)
+            # log(self.SELECTED_TRANSFORM.source_proj)
             source_crs.createFromProj4(self.SELECTED_TRANSFORM.source_proj)
         else:
             log("Source from id")
@@ -463,6 +466,7 @@ class icsm_ntv2_transformer:
             self.iface.messageBar().pushMessage(
                 "Success", "Transformation complete.", level=QgsMessageBar.INFO, duration=3)
             if self.dlg.TOCcheckBox.isChecked():
+                log("Opening file {}".format(out_file))
                 basename = QFileInfo(out_file).baseName()
                 vlayer = QgsVectorLayer(out_file, str(basename), "ogr")
                 if vlayer.isValid():
@@ -475,6 +479,7 @@ class icsm_ntv2_transformer:
                 "Error", "Transformation failed, please check your configuration.", level=QgsMessageBar.CRITICAL, duration=3)
 
     def transform_raster(self, out_file):
+        log("Transforming raster to: {}".format(out_file))
         src_ds = self.in_dataset
 
         # Define source CRS
@@ -541,8 +546,6 @@ class icsm_ntv2_transformer:
         self.in_dataset = None
 
         self.in_file_type = None
-
-        self.prepare_transforms()
 
         # This build the list of available transforms.
         self.prepare_transforms()
@@ -646,6 +649,7 @@ class icsm_ntv2_transformer:
             log("Checking whether we need a file.")
             required_grid = self.SELECTED_TRANSFORM.grid
             log(required_grid)
+            success_downloading = True
             if not os.path.isfile(required_grid):
                 grid_file = os.path.basename(required_grid)
                 remote_file = GRID_FILE_SOURCE + grid_file
@@ -653,32 +657,56 @@ class icsm_ntv2_transformer:
 
                 self.update_transform_text("Downloading required grid file, please wait...")
 
-                update_local_file(remote_file, required_grid)
+                success_downloading = update_local_file(remote_file, required_grid)
 
-            log("Starting transform process...")
-            self.in_file = self.dlg.in_file_name.text()
-            self.out_file = self.dlg.out_file_name.text()
-
-            if self.in_file_type:
-                if not self.out_file:
-                    log("No outfile set, writing to default name.")
-                    filename, file_extension = os.path.splitext(self.in_file)
-                    # Setting up default out file without an extension...
-                    out_file = filename + '_transformed'
-                    if self.in_file_type == 'VECTOR':
-                        out_file += '.shp'
-                    else:
-                        out_file += '.tiff'
-                    self.out_file = out_file
-                    self.dlg.out_file_name.setText(self.out_file)
-
-                if self.in_file_type == 'VECTOR':
-                    self.transform_vector(self.out_file)
-                else:
-                    self.transform_raster(self.out_file)
-            else:
+            if not success_downloading:
+                self.update_transform_text("Failed to download transformation grid...")
                 self.iface.messageBar().pushMessage(
-                    "Error", "Invalid settings...", level=QgsMessageBar.CRITICAL, duration=3)
-            self.update_transform_text("Finished processing...")
-            # Keep the display open (maybe)
-            self.run()
+                    "Error", "Failed to download transformation grid. Check your network connection and try again.", level=QgsMessageBar.CRITICAL, duration=5)
+
+            else:
+                log("Starting transform process...")
+                self.in_file = self.dlg.in_file_name.text()
+                self.out_file = self.dlg.out_file_name.text()
+
+                if self.in_file_type:
+                    if not self.out_file:
+                        log("No outfile set, writing to default name.")
+                        filename, file_extension = os.path.splitext(self.in_file)
+                        # Setting up default out file without an extension...
+                        out_file = filename + '_transformed'
+                        if self.in_file_type == 'VECTOR':
+                            out_file += '.shp'
+                        else:
+                            out_file += '.tiff'
+                        self.out_file = out_file
+                        self.dlg.out_file_name.setText(self.out_file)
+                    else:
+                        # Validate the out file name and extension
+                        log("Validating out file name")
+                        extension = os.path.splitext(self.out_file)[1][1:].lower()
+                        directory = os.path.dirname(self.out_file)
+                        if os.path.isdir(directory):
+                            log("File path includes directory")
+                        else:
+                            log("File path does not include directory")
+                            directory = os.path.dirname(self.in_file)
+                            self.out_file = os.path.join(directory, self.out_file)
+
+                        if extension not in ['shp', 'tiff', 'tif']:
+                            log("Extension was {}, which is invalid. Adding extension".format(extension))
+                            self.out_file.replace(extension, '')
+                            if self.in_file_type == 'VECTOR':
+                                self.out_file = self.out_file + '.shp'
+                            else:
+                                self.out_file = self.out_file + '.tiff'
+                            self.dlg.out_file_name.setText(self.out_file)
+
+                    if self.in_file_type == 'VECTOR':
+                        self.transform_vector(self.out_file)
+                    else:
+                        self.transform_raster(self.out_file)
+                else:
+                    self.iface.messageBar().pushMessage(
+                        "Error", "Invalid settings...", level=QgsMessageBar.CRITICAL, duration=3)
+                self.update_transform_text("Finished processing...")
