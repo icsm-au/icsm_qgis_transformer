@@ -108,7 +108,7 @@ class icsm_ntv2_transformer:
         ),
         'GDA94_GDA2020_conformal_and_distortion.gsb': (
             "<b>WARNING! Currently only covers Tasmania.</b>"
-            "NTv2 transformation grid GDA94_GDA2020_conformal_and_distortion.gsb [EPSG:????] <b>applies a conformal plus distrortion transformation between the datums.</b><br>"
+            "NTv2 transformation grid GDA94_GDA2020_conformal_and_distortion.gsb [EPSG:????] <b>applies a conformal plus GDA94_GDA2020_conformal_and_distortion transformation between the datums.</b><br>"
             "See Section 3.6.1 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and when it is appropriate to apply."
         )
     }
@@ -148,7 +148,7 @@ class icsm_ntv2_transformer:
         '78': {
             "name": "GDA2020 / MGA",
             'utm': True,
-            "proj": None,
+            "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +wktext',
             "grid": None
         },
         '4202': {
@@ -184,7 +184,7 @@ class icsm_ntv2_transformer:
         '7844': {
             "name": "GDA2020 Latitude and Longitude",
             "utm": False,
-            "proj": None,
+            "proj": '+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +wktext',
             "grid": None
         }
     }
@@ -426,7 +426,7 @@ class icsm_ntv2_transformer:
         source_crs = QgsCoordinateReferenceSystem()
         if self.SELECTED_TRANSFORM.source_proj:
             log("Source from proj")
-            # log(self.SELECTED_TRANSFORM.source_proj)
+            log(self.SELECTED_TRANSFORM.source_proj)
             source_crs.createFromProj4(self.SELECTED_TRANSFORM.source_proj)
         else:
             log("Source from id")
