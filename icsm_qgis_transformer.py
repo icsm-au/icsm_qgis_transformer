@@ -130,7 +130,7 @@ class icsm_ntv2_transformer:
         '283': {
             "name": "GDA94 / MGA",
             'utm': True,
-            "proj": None,
+            "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +wktext',
             "grid": None
         },
         '283c': {
@@ -444,12 +444,17 @@ class icsm_ntv2_transformer:
             # We do an intermediate transform, so that the target gets a proper SRID
             temp_dir = tempfile.mkdtemp()
             temp_outfilename = os.path.join(temp_dir, 'temp_file.shp')
-            log(temp_outfilename)
+            # log(temp_outfilename)
             error = QgsVectorFileWriter.writeAsVectorFormat(layer, temp_outfilename, 'utf-8', dest_crs, 'ESRI Shapefile')
             if error == QgsVectorFileWriter.NoError:
                 log("Success on intermediate transform")
                 # These overwrite the original target layer destination file.
                 layer = QgsVectorLayer(temp_outfilename, 'in layer', 'ogr')
+                # The next transform is from and to the destination transform, just happening to define the CRS properly.
+                intermediary_crs = QgsCoordinateReferenceSystem()
+                intermediary_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
+                layer.setCrs(intermediary_crs)
+                print(layer.crs().authid())
                 dest_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
             else:
                 log("Error writing vector, code: {}".format(str(error)))
