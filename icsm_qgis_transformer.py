@@ -40,8 +40,6 @@ from qgis.core import (QgsCoordinateReferenceSystem, QgsMapLayerRegistry,
                        QgsVectorLayer)
 from qgis.gui import QgsMessageBar
 
-import subprocess
-
 Transform = namedtuple(
     'Transform',
     ['name', 'source_name', 'target_name', 'source_proj', 'target_proj', 'source_code', 'target_code', 'grid', 'grid_text'],
