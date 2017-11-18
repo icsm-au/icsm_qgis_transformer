@@ -40,6 +40,8 @@ from qgis.core import (QgsCoordinateReferenceSystem, QgsMapLayerRegistry,
                        QgsVectorLayer)
 from qgis.gui import QgsMessageBar
 
+import subprocess
+
 Transform = namedtuple(
     'Transform',
     ['name', 'source_name', 'target_name', 'source_proj', 'target_proj', 'source_code', 'target_code', 'grid', 'grid_text'],
@@ -108,7 +110,7 @@ class icsm_ntv2_transformer:
         ),
         'GDA94_GDA2020_conformal_and_distortion.gsb': (
             "<b>WARNING! Currently only covers Tasmania.</b><br>"
-            "NTv2 transformation grid GDA94_GDA2020_conformal_and_distortion.gsb [EPSG:????] <b>applies a conformal plus GDA94_GDA2020_conformal_and_distortion transformation between the datums.</b><br>"
+            "NTv2 transformation grid GDA94_GDA2020_conformal_and_distortion.gsb [EPSG:????] <b>applies a conformal plus distortion transformation between the datums.</b><br>"
             "See Section 3.6.1 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and when it is appropriate to apply."
         )
     }
@@ -410,7 +412,7 @@ class icsm_ntv2_transformer:
     def browse_outfiles(self):
         log("Browsing out files")
         newname = QFileDialog.getSaveFileName(
-            None, "Output file", self.dlg.out_file_name.displayText(), "Shapefile or TIFF (*.shp *.tiff)")
+            None, "Output file", self.dlg.out_file_name.displayText(), "Shapefile or TIFF (*.shp *.tiff *.tif)")
 
         if newname:
             log("Out file newname {}".format(newname))
@@ -435,35 +437,35 @@ class icsm_ntv2_transformer:
         log("Setting Source CRS")
         layer.setCrs(source_crs)
 
-        dest_crs = QgsCoordinateReferenceSystem()
         if self.SELECTED_TRANSFORM.target_proj:
-            log("Target from proj")
+            log("Setting intermediate CRS from proj")
             log(self.SELECTED_TRANSFORM.target_proj)
-            dest_crs.createFromProj4(self.SELECTED_TRANSFORM.target_proj)
+            temp_crs = QgsCoordinateReferenceSystem()
+            temp_crs.createFromProj4(self.SELECTED_TRANSFORM.target_proj)
 
             # We do an intermediate transform, so that the target gets a proper SRID
             temp_dir = tempfile.mkdtemp()
             temp_outfilename = os.path.join(temp_dir, 'temp_file.shp')
+            log("Tempfile is: {}".format(temp_outfilename))
             # log(temp_outfilename)
-            error = QgsVectorFileWriter.writeAsVectorFormat(layer, temp_outfilename, 'utf-8', dest_crs, 'ESRI Shapefile')
+            error = QgsVectorFileWriter.writeAsVectorFormat(layer, temp_outfilename, 'utf-8', temp_crs, 'ESRI Shapefile')
             if error == QgsVectorFileWriter.NoError:
                 log("Success on intermediate transform")
                 # These overwrite the original target layer destination file.
                 layer = QgsVectorLayer(temp_outfilename, 'in layer', 'ogr')
-                # The next transform is from and to the destination transform, just happening to define the CRS properly.
+                # The next transform is from and to the destination transform, which is needed to define the CRS properly.
                 intermediary_crs = QgsCoordinateReferenceSystem()
                 intermediary_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
                 layer.setCrs(intermediary_crs)
-                print(layer.crs().authid())
-                dest_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
             else:
                 log("Error writing vector, code: {}".format(str(error)))
                 self.iface.messageBar().pushMessage(
                     "Error", "Transformation failed, please check your configuration.", level=QgsMessageBar.CRITICAL, duration=3)
                 return
-        else:
-            log("Target from id")
-            dest_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
+
+        log("Setting final target CRS from id")
+        dest_crs = QgsCoordinateReferenceSystem()
+        dest_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
 
         error = QgsVectorFileWriter.writeAsVectorFormat(layer, out_file, 'utf-8', dest_crs, 'ESRI Shapefile')
         if error == QgsVectorFileWriter.NoError:
@@ -490,16 +492,20 @@ class icsm_ntv2_transformer:
         # Define source CRS
         src_crs = osr.SpatialReference()
         if self.SELECTED_TRANSFORM.source_proj:
+            log("Source from proj")
             src_crs.ImportFromProj4(self.SELECTED_TRANSFORM.source_proj)
         else:
+            log("Source from code")
             src_crs.ImportFromEPSG(self.SELECTED_TRANSFORM.source_code)
         src_wkt = src_crs.ExportToWkt()
 
         # Define target CRS
         dst_crs = osr.SpatialReference()
         if self.SELECTED_TRANSFORM.target_proj:
+            log("Target from proj")
             dst_crs.ImportFromProj4(self.SELECTED_TRANSFORM.target_proj)
         else:
+            log("Target from code")
             dst_crs.ImportFromEPSG(self.SELECTED_TRANSFORM.target_code)
         dst_wkt = dst_crs.ExportToWkt()
 
@@ -519,7 +525,21 @@ class icsm_ntv2_transformer:
             if '.tif' not in out_file:
                 out_file += '.tiff'
             dst_ds = gdal.GetDriverByName('GTiff').CreateCopy(out_file, tmp_ds)
+
+            # If we transformed using Proj, set the CRS using the EPSG code
+            if self.SELECTED_TRANSFORM.target_proj:
+                srs = 'EPSG:{}'.format(self.SELECTED_TRANSFORM.target_code)
+                sr = osr.SpatialReference()
+                if sr.SetFromUserInput(srs) != 0:
+                    log('Failed to process SRS definition: {}'.format(srs))
+                    self.iface.messageBar().pushMessage(
+                        "Error", "Failed to assign EPSG code, this may mean that you need a newer QGIS install.",
+                        level=QgsMessageBar.CRITICAL, duration=3)
+                else:
+                    wkt = sr.ExportToWkt()
+                    dst_ds.SetProjection(wkt)
             dst_ds = None
+
             self.iface.messageBar().pushMessage(
                 "Success", "Transformation complete.", level=QgsMessageBar.INFO, duration=3)
             if self.dlg.TOCcheckBox.isChecked():
@@ -528,6 +548,10 @@ class icsm_ntv2_transformer:
                 if rlayer.isValid():
                     QgsMapLayerRegistry.instance().addMapLayers([rlayer])
                 else:
+                    self.iface.messageBar().pushMessage(
+                        "Error", "Couldn't read output raster, process unsuccessful.",
+                        level=QgsMessageBar.CRITICAL, duration=3
+                    )
                     log("rlayer invalid")
         except Exception as e:
             self.iface.messageBar().pushMessage(
