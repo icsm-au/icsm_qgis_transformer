@@ -26,17 +26,18 @@ When the plugin is installed, you should see an icon on your QGIS toolbar that l
 
 ## Running a vector or raster transformation
 
-In order to run a vector or raster transformation, choose a supported spatial file as an 'in file'. Most common formats will work. The chosen file will be analysed, in order to determine if it is supported, and it must be in a known coordinate reference system (CRS)
+In order to run a vector or raster transformation, choose a supported spatial file as an 'in file'. Most common formats will work. The chosen file will be analysed, in order to determine if it is supported, and it must be in a known coordinate reference system (CRS).
 
 To run a transformation, do the following:
  * Select an 'in file', which is the dataset to be transformed
  * (Optionally) select an 'out file', which will be overwritten with the transformed file
  * Choose an 'out coordinate system', which will determine the transformation to use
+ * You can check the option 'Open output after running' to load the resulting dataset into your workspace
  * Press 'OK' to run the transformation.
 
 ![Example plugin settings](./images/example_config.png)
 
-*Note that there is information about the transform that will be undertaken that is shown in the dialog under the plugin fields. This gives you an opportunity to understand what transformation grids will be used.*
+*Note: there is information about the transform that will be undertaken that is shown in the dialog under the plugin fields. This gives you an opportunity to understand what transformation grids will be used.*
 
 <div style="page-break-after: always;"></div>
 
@@ -50,11 +51,11 @@ Supported coordinate reference systems include:
  * AGD66 AMG Zones 29-57 (EPSG:202xx)
  * AGD84 AMG Zones 29-57 (EPSG:203xx)
  * GDA94 MGA Zones 29-57 (EPSG:293xx)
- * GDA2020 MGA (coming soon)
+ * GDA2020 MGA (EPSG:78xx)
  * AGD66 LonLat (EPSG:4202)
  * AGD84 LonLat (EPSG:4203)
  * GDA94 LonLat (EPSG:4283)
- * GDA2020 LonLat (coming soon)
+ * GDA2020 LonLat (EPSG:7844)
 
 
 <div style="page-break-after: always;"></div>
