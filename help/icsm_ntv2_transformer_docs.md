@@ -62,6 +62,14 @@ Supported coordinate reference systems include:
 
 ## Extras
 
+### Transformation grids
+
+The plugin will attempt to download transformation grids when they are required. If you need to install them manually, you can do so by downloading them from [ICSM's GitHub](https://github.com/icsm-au/transformation_grids). In order to install them, do the following:
+* Install the ICSM NTv2 Transformer plugin by following the instructions above
+* Download the required `.gsb` files from the [ICSM's GitHub](https://github.com/icsm-au/transformation_grids) repository
+* Locate your QGIS plugin directory (this is `C:\Users\{username}\.qgis2\python\plugins` on Windows or `/Users/{username}/.qgis2/python/plugins` on macOS)
+* Copy the `.gsb` files into the folder `/icsm_ntv2_transformer/grids` in your plugin directory.
+
 ### Support
 
 If you're having trouble with this plugin, you can find support through the community at [GIS StackExchange](http://gis.stackexchange.com).
