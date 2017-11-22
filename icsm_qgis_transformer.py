@@ -72,8 +72,12 @@ def update_local_file(remote_url, local_file):
         else:
             log("Successfully download file of size {} to {}".format(content_length, local_file))
     except KeyError:
-        log("Failed to download file with error: {}".format(result['Status']))
         os.remove(local_file)
+        if result.get('Status'):
+            log("Failed to download file with error: {}".format(result['Status']))
+        else:
+            log("Failed to download file unexpected error: {}".format(result))
+        return False
     return True
 
 
@@ -140,13 +144,19 @@ class icsm_ntv2_transformer:
             "grid": GDA2020CONF
         },
         '283d': {
-            "name": "GDA94 / MGA",
+            "name": "GDA94 / MGA (Conformal and distortion",
             'utm': True,
             "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
             "grid": GDA2020CONF_DIST
         },
-        '78': {
-            "name": "GDA2020 / MGA",
+        '78c': {
+            "name": "GDA2020 / MGA (Conformal only)",
+            'utm': True,
+            "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +wktext',
+            "grid": None
+        },
+        '78d': {
+            "name": "GDA2020 / MGA (Conformal & Distortion)",
             'utm': True,
             "proj": '+proj=utm +zone={zone} +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +wktext',
             "grid": None
@@ -176,13 +186,19 @@ class icsm_ntv2_transformer:
             "grid": GDA2020CONF
         },
         '4283d': {
-            "name": "GDA94 Latitude and Longitude",
+            "name": "GDA94 Latitude and Longitude (Conformal & Distortion)",
             "utm": False,
             "proj": '+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +nadgrids=' + GDA2020CONF_DIST + ' +wktext',
             "grid": GDA2020CONF_DIST
         },
-        '7844': {
-            "name": "GDA2020 Latitude and Longitude",
+        '7844c': {
+            "name": "GDA2020 Latitude and Longitude (Conformal only)",
+            "utm": False,
+            "proj": '+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +wktext',
+            "grid": None
+        },
+        '7844d': {
+            "name": "GDA2020 Latitude and Longitude (Conformal & Distortion)",
             "utm": False,
             "proj": '+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs +wktext',
             "grid": None
@@ -207,16 +223,18 @@ class icsm_ntv2_transformer:
         ['202', ['283']],
         ['203', ['283']],
         ['283', ['202', '203']],
-        # ['283c', ['78']],
-        ['283d', ['78']],
-        ['78', ['283d']],
+        ['283c', ['78c']],
+        ['283d', ['78d']],
+        ['78c', ['283c']],
+        ['78d', ['283d']],
         # LonLat
         ['4202', ['4283']],
         ['4203', ['4283']],
         ['4283', ['4202', '4203']],
-        # ['4283c', ['7844']],
-        ['4283d', ['7844']],
-        ['7844', ['4283d']],
+        ['4283c', ['7844c']],
+        ['4283d', ['7844d']],
+        ['7844c', ['4283c']],
+        ['7844d', ['4283d']],
     ]
 
     def build_transform(self, in_info, in_crs, zone=False):
@@ -241,8 +259,9 @@ class icsm_ntv2_transformer:
             target_name = self.available_epsgs[target_epsg]['name']
             # log("Working on {} with {}".format(source_name, target_name))
             target_grid = self.available_epsgs[target_epsg]['grid']
+            target_epsg_clean = target_epsg.replace('c', '').replace('d', '')
             target_code = '{epsg}{zone}'.format(
-                epsg=target_epsg.replace('c', '').replace('d', ''),
+                epsg=target_epsg_clean,
                 zone=zone_string
             )
             name = source_name.split(' ')[0] + ' to ' + target_name.split(' ')[0]
