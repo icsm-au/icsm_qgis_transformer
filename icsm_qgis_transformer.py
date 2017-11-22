@@ -33,7 +33,7 @@ from osgeo import gdal, osr
 
 from icsm_qgis_transformer_dialog import icsm_ntv2_transformerDialog
 from PyQt4.QtCore import (SIGNAL, QCoreApplication, QFileInfo, QObject,
-                          QSettings, QTranslator, qVersion)
+                          QSettings)
 from PyQt4.QtGui import QAction, QFileDialog, QIcon
 from qgis.core import (QgsCoordinateReferenceSystem, QgsMapLayerRegistry,
                        QgsMessageLog, QgsRasterLayer, QgsVectorFileWriter,
@@ -54,7 +54,7 @@ except ImportError:
 # This is the GitHub source
 GRID_FILE_SOURCE = "https://github.com/icsm-au/transformation_grids/raw/master/"
 # This is the AWS S3 source
-GRID_FILE_SOURCE = "https://s3-ap-southeast-2.amazonaws.com/transformationgrids/"
+GRID_FILE_SOURCE = "https://s3-ap-southeast-2.amazonaws.com/transformation-grids/"
 
 
 def update_local_file(remote_url, local_file):
