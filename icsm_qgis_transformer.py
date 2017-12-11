@@ -106,12 +106,10 @@ class icsm_ntv2_transformer:
             "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description."
         ),
         'GDA94_GDA2020_conformal.gsb': (
-            "<b>WARNING! Currently only covers Tasmania.</b><br>"
             "NTv2 transformation grid GDA94_GDA2020_conformal.gsb [EPSG:????] <b>only applies a conformal transformation between the datums.</b><br>"
             "See Section 3.6.1 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and when it is appropriate to apply."
         ),
         'GDA94_GDA2020_conformal_and_distortion.gsb': (
-            "<b>WARNING! Currently only covers Tasmania.</b><br>"
             "NTv2 transformation grid GDA94_GDA2020_conformal_and_distortion.gsb [EPSG:????] <b>applies a conformal plus distortion transformation between the datums.</b><br>"
             "See Section 3.6.1 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and when it is appropriate to apply."
         )
