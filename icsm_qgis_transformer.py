@@ -99,7 +99,7 @@ class icsm_ntv2_transformer:
     GRID_COMMENTS = {
         'A66_National_13_09_01.gsb': (
             "NTv2 transformation grid A66_national_13_09_01.gsb [EPSG:1803] <b>provides complete national coverage.</b><br>"
-            "See Appendix A of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description."
+            "See Appendix B of Geocentric Datum of Australia 2020 Technical Manual for grid coverage and description."
         ),
         'National_84_02_07_01.gsb': (
             "NTv2 transformation grid National_84_02_07_01.gsb [EPSG:1804] <b>only has coverage for jurisdictions that adopted AGD84 - QLD, SA and WA.</b><br>"
@@ -107,11 +107,11 @@ class icsm_ntv2_transformer:
         ),
         'GDA94_GDA2020_conformal.gsb': (
             "NTv2 transformation grid GDA94_GDA2020_conformal.gsb [EPSG:????] <b>only applies a conformal transformation between the datums.</b><br>"
-            "See Section 3.6.1 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and when it is appropriate to apply."
+            "See Section 3.2 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and Section 3.7.1 for when it is appropriate to apply."
         ),
         'GDA94_GDA2020_conformal_and_distortion.gsb': (
             "NTv2 transformation grid GDA94_GDA2020_conformal_and_distortion.gsb [EPSG:????] <b>applies a conformal plus distortion transformation between the datums.</b><br>"
-            "See Section 3.6.1 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and when it is appropriate to apply."
+            "See Section 3.2 of Geocentric Datum of Australia 2020 Technical Manual for a description of the grid and Section 3.7.1 for when it is appropriate to apply."
         )
     }
 

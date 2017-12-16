@@ -47,11 +47,11 @@ Some important notes to keep in mind about the operation of this plugin:
  * If you don't select an 'out file' then the output will default to a file with '<oldfilename>_transformed'.
  * Any vector file will be saved out as a Shapefile, and any raster as a GeoTiff.
 
-Supported coordinate reference systems include:
- * AGD66 AMG Zones 29-57 (EPSG:202xx)
- * AGD84 AMG Zones 29-57 (EPSG:203xx)
- * GDA94 MGA Zones 29-57 (EPSG:293xx)
- * GDA2020 MGA (EPSG:78xx)
+Supported coordinate reference systems (within the grid coverage areas) include:
+ * AGD66 AMG Zones 49-56 (EPSG:202xx)
+ * AGD84 AMG Zones 49-56 (EPSG:203xx)
+ * GDA94 MGA Zones 49-56 (EPSG:293xx)
+ * GDA2020 MGA Zones 49-56 (EPSG:78xx)
  * AGD66 LonLat (EPSG:4202)
  * AGD84 LonLat (EPSG:4203)
  * GDA94 LonLat (EPSG:4283)
