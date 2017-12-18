@@ -61,7 +61,7 @@ PEP8EXCLUDE=pydev,resources.py,conf.py,third_party,ui
 # Normally you would not need to edit below here
 #################################################
 
-HELP = help/build
+HELP = help
 
 PLUGIN_UPLOAD = $(c)/plugin_upload.py
 
@@ -110,7 +110,8 @@ deploy: compile transcompile
 	cp -vf $(UI_FILES) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vf $(COMPILED_RESOURCE_FILES) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 	cp -vf $(EXTRAS) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
-	cp -vfr $(HELP) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/help
+	-mkdir $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/help/
+	cp -vfr $(HELP)/$(PLUGINNAME)_docs.pdf $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/help/$(PLUGINNAME)_docs.pdf
 	# Copy extra directories if any
 	-rm -r $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(GRIDS)
 	cp -vrf $(GRIDS) $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)/$(GRIDS)
@@ -135,7 +136,7 @@ derase:
 	@echo "-------------------------"
 	rm -Rf $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 
-zip: doc deploy dclean
+zip: deploy dclean
 	@echo
 	@echo "---------------------------"
 	@echo "Creating plugin zip bundle."
@@ -143,7 +144,7 @@ zip: doc deploy dclean
 	# The zip target deploys the plugin and creates a zip file with the deployed
 	# content. You can then upload the zip file on http://plugins.qgis.org
 	rm -f $(PLUGINNAME).zip
-	cd $(HOME)/$(QGISDIR)/python/plugins; zip -9r $(CURDIR)/$(PLUGINNAME).zip $(PLUGINNAME)
+	cd $(HOME)/$(QGISDIR)/python/plugins; zip -r $(CURDIR)/$(PLUGINNAME).zip $(PLUGINNAME) -x \help\images\*.png -x \help\*.md \*.gsb \*Makefile* \*.gsb \*.pyc \*.ts \*.ui \*.qrc
 
 package: doc compile
 	# Create a zip package of the plugin named $(PLUGINNAME).zip.
@@ -202,6 +203,8 @@ doc:
 	@echo "Building documentation using sphinx."
 	@echo "------------------------------------"
 	cd help; make render
+	mv help/build/icsm_ntv2_transformer_docs.pdf help/icsm_ntv2_transformer_docs.pdf
+	rm -r help/build
 
 pylint:
 	@echo
