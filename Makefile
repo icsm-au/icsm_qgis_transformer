@@ -136,7 +136,7 @@ derase:
 	@echo "-------------------------"
 	rm -Rf $(HOME)/$(QGISDIR)/python/plugins/$(PLUGINNAME)
 
-zip: deploy dclean
+zip: doc deploy dclean
 	@echo
 	@echo "---------------------------"
 	@echo "Creating plugin zip bundle."
@@ -144,7 +144,7 @@ zip: deploy dclean
 	# The zip target deploys the plugin and creates a zip file with the deployed
 	# content. You can then upload the zip file on http://plugins.qgis.org
 	rm -f $(PLUGINNAME).zip
-	cd $(HOME)/$(QGISDIR)/python/plugins; zip -r $(CURDIR)/$(PLUGINNAME).zip $(PLUGINNAME) -x \help\images\*.png -x \help\*.md \*.gsb \*Makefile* \*.gsb \*.pyc \*.ts \*.ui \*.qrc
+	cd $(HOME)/$(QGISDIR)/python/plugins; zip -r $(CURDIR)/$(PLUGINNAME).zip $(PLUGINNAME) -x \help\images\*.png -x \help\*.md \*.gsb \*Makefile* \*.gsb \*.pyc \*.qrc
 
 package: doc compile
 	# Create a zip package of the plugin named $(PLUGINNAME).zip.
