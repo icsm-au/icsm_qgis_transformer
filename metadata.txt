@@ -8,7 +8,7 @@
 
 [general]
 name=ICSM NTv2 Transformer
-qgisMinimumVersion=2.0
+qgisMinimumVersion=3.0
 description=This plugin uses official ICSM grids to transform between Australian coordinate systems.
 version=1.0.3
 author=Alex Leith

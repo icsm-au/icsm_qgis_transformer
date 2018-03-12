@@ -23,13 +23,14 @@
 
 import os
 
-from PyQt4 import QtGui, uic
+from qgis.PyQt.QtWidgets import QDialog
+from qgis.PyQt import QtGui, uic
 
 FORM_CLASS, _ = uic.loadUiType(os.path.join(
     os.path.dirname(__file__), 'icsm_qgis_transformer_dialog_base.ui'))
 
 
-class icsm_ntv2_transformerDialog(QtGui.QDialog, FORM_CLASS):
+class icsm_ntv2_transformerDialog(QDialog, FORM_CLASS):
     def __init__(self, parent=None):
         """Constructor."""
         super(icsm_ntv2_transformerDialog, self).__init__(parent)
