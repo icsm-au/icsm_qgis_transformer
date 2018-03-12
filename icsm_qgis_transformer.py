@@ -39,19 +39,8 @@ from qgis.PyQt.QtWidgets import QAction, QFileDialog
 from qgis.PyQt.QtGui import QIcon
 from qgis.core import (QgsCoordinateReferenceSystem, QgsProject,
                        QgsMessageLog, QgsRasterLayer, QgsVectorFileWriter,
-                       QgsVectorLayer)
+                       QgsVectorLayer, Qgis)
 from qgis.gui import QgsMessageBar
-
-
-class LogLevels:
-    """A class for log levels"""
-    INFO = 0
-    WARNING = 1
-    CRITICAL = 2
-    SUCCESS = 3
-    NONE = 4
-
-QgsMessageLevel = LogLevels()
 
 
 Transform = namedtuple(
@@ -79,16 +68,14 @@ def update_local_file(remote_url, local_file):
         return False
 
     try:
-        content_length = result['Content-Length']
-        log(content_length)
-        content_length = int(content_length)
+        content_length = int(result['Content-Length'])
 
         if content_length < 1000:
             os.remove(local_file)
             log("Failed to download file. Please contact support.")
         else:
             log("Successfully download file of size {} to {}".format(content_length, local_file))
-    except KeyError:
+    except (KeyError, ValueError):
         os.remove(local_file)
         if result.get('Status'):
             log("Failed to download file with error: {}".format(result['Status']))
@@ -99,9 +86,9 @@ def update_local_file(remote_url, local_file):
 
 
 def log(message, error=False):
-    log_level = QgsMessageLevel.INFO
+    log_level = Qgis.Info
     if error:
-        log_level = QgsMessageLevel.CRITICAL
+        log_level = Qgis.Critical
     QgsMessageLog.logMessage(message, 'ICSM NTv2 Transformer', level=log_level)
 
 
@@ -429,7 +416,7 @@ class icsm_ntv2_transformer(object):
                 self.in_dataset = dataset
         if fail:
             self.iface.messageBar().pushMessage(
-                "Error", "Couldn't read 'in file' {} as vector or raster".format(newname), level=QgsMessageLevel.CRITICAL, duration=3)
+                "Error", "Couldn't read 'in file' {} as vector or raster".format(newname), level=Qgis.Critical, duration=3)
             self.update_transform_text("Couldn't read 'In file.'")
         else:
             self.dlg.in_file_name.setText(newname)
@@ -480,7 +467,9 @@ class icsm_ntv2_transformer(object):
             temp_outfilename = os.path.join(temp_dir, 'temp_file.shp')
             log("Tempfile is: {}".format(temp_outfilename))
             # log(temp_outfilename)
-            error = QgsVectorFileWriter.writeAsVectorFormat(layer, temp_outfilename, 'utf-8', temp_crs, 'ESRI Shapefile')
+            error, message = QgsVectorFileWriter.writeAsVectorFormat(layer, temp_outfilename, 'utf-8', temp_crs, 'ESRI Shapefile')
+            log(str(error))
+            log(str(QgsVectorFileWriter.NoError))
             if error == QgsVectorFileWriter.NoError:
                 log("Success on intermediate transform")
                 # These overwrite the original target layer destination file.
@@ -490,34 +479,35 @@ class icsm_ntv2_transformer(object):
                 intermediary_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
                 layer.setCrs(intermediary_crs)
             else:
-                log("Error writing vector, code: {}".format(str(error)))
+                log("Error writing temporary vector, code: {} and message: {}".format(str(error), message))
                 self.iface.messageBar().pushMessage(
-                    "Error", "Transformation failed, please check your configuration.", level=QgsMessageLevel.CRITICAL, duration=3)
+                    "Error", "Transformation failed, please check your configuration.", level=Qgis.Critical, duration=3)
                 return
 
-        log("Setting final target CRS from id")
-        dest_crs = QgsCoordinateReferenceSystem()
-        dest_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
+            log("Setting final target CRS from id")
+            dest_crs = QgsCoordinateReferenceSystem()
+            dest_crs.createFromId(self.SELECTED_TRANSFORM.target_code)
 
-        error = QgsVectorFileWriter.writeAsVectorFormat(layer, out_file, 'utf-8', dest_crs, 'ESRI Shapefile')
-        if error == QgsVectorFileWriter.NoError:
-            log("Success")
-            self.iface.messageBar().pushMessage(
-                "Success", "Transformation complete.", level=QgsMessageLevel.INFO, duration=3)
-            if self.dlg.TOCcheckBox.isChecked():
-                log("Opening file {}".format(out_file))
-                basename = QFileInfo(out_file).baseName()
-                vlayer = QgsVectorLayer(out_file, str(basename), "ogr")
-                if vlayer.isValid():
-                    QgsProject.instance().addMapLayers([vlayer])
-                else:
-                    log("vlayer invalid")
-        else:
-            log("Error writing vector, code: {}".format(str(error)))
-            self.iface.messageBar().pushMessage(
-                "Error", "Transformation failed, please check your configuration.", level=QgsMessageLevel.CRITICAL, duration=3)
+            error, message = QgsVectorFileWriter.writeAsVectorFormat(layer, out_file, 'utf-8', dest_crs, 'ESRI Shapefile')
+            if error == QgsVectorFileWriter.NoError:
+                log("Success")
+                self.iface.messageBar().pushMessage(
+                    "Success", "Transformation complete.", level=Qgis.Info, duration=3)
+                if self.dlg.TOCcheckBox.isChecked():
+                    log("Opening file {}".format(out_file))
+                    basename = QFileInfo(out_file).baseName()
+                    vlayer = QgsVectorLayer(out_file, str(basename), "ogr")
+                    if vlayer.isValid():
+                        QgsProject.instance().addMapLayers([vlayer])
+                    else:
+                        log("vlayer invalid")
+            else:
+                log("Error writing vector, code: {} and message: {}".format(str(error), message))
+                self.iface.messageBar().pushMessage(
+                    "Error", "Transformation failed, please check your configuration.", level=Qgis.Critical, duration=3)
 
     def transform_raster(self, out_file):
+        out_file = out_file.replace('.shp', '').replace('.SHP', '')
         log("Transforming raster to: {}".format(out_file))
         src_ds = self.in_dataset
 
@@ -566,14 +556,14 @@ class icsm_ntv2_transformer(object):
                     log('Failed to process SRS definition: {}'.format(srs))
                     self.iface.messageBar().pushMessage(
                         "Error", "Failed to assign EPSG code, this may mean that you need a newer QGIS install.",
-                        level=QgsMessageLevel.CRITICAL, duration=3)
+                        level=Qgis.Critical, duration=3)
                 else:
                     wkt = sr.ExportToWkt()
                     dst_ds.SetProjection(wkt)
             dst_ds = None
 
             self.iface.messageBar().pushMessage(
-                "Success", "Transformation complete.", level=QgsMessageLevel.INFO, duration=3)
+                "Success", "Transformation complete.", level=Qgis.Info, duration=3)
             if self.dlg.TOCcheckBox.isChecked():
                 basename = QFileInfo(out_file).baseName()
                 rlayer = QgsRasterLayer(out_file, str(basename))
@@ -582,12 +572,12 @@ class icsm_ntv2_transformer(object):
                 else:
                     self.iface.messageBar().pushMessage(
                         "Error", "Couldn't read output raster, process unsuccessful.",
-                        level=QgsMessageLevel.CRITICAL, duration=3
+                        level=Qgis.Critical, duration=3
                     )
                     log("rlayer invalid")
         except Exception as e:
             self.iface.messageBar().pushMessage(
-                "Error", "Transformation failed, please check your configuration. Error was: {}".format(e), level=QgsMessageLevel.CRITICAL, duration=3)
+                "Error", "Transformation failed, please check your configuration. Error was: {}".format(e), level=Qgis.Critical, duration=3)
 
     def __init__(self, iface):
         self.dialog_initialised = False
@@ -705,7 +695,7 @@ class icsm_ntv2_transformer(object):
             if not self.SELECTED_TRANSFORM:
                 log("No transform available, closing.")
                 self.iface.messageBar().pushMessage(
-                    "Error", "No transformation available...", level=QgsMessageLevel.CRITICAL, duration=3)
+                    "Error", "No transformation available...", level=Qgis.Critical, duration=3)
                 return
             log("Checking whether we need a file.")
             required_grid = self.SELECTED_TRANSFORM.grid
@@ -723,7 +713,7 @@ class icsm_ntv2_transformer(object):
             if not success_downloading:
                 self.update_transform_text("Failed to download transformation grid...")
                 self.iface.messageBar().pushMessage(
-                    "Error", "Failed to download transformation grid. Check your network connection and try again.", level=QgsMessageLevel.CRITICAL, duration=5)
+                    "Error", "Failed to download transformation grid. Check your network connection and try again.", level=Qgis.Critical, duration=5)
 
             else:
                 log("Starting transform process...")
@@ -769,5 +759,5 @@ class icsm_ntv2_transformer(object):
                         self.transform_raster(self.out_file)
                 else:
                     self.iface.messageBar().pushMessage(
-                        "Error", "Invalid settings...", level=QgsMessageLevel.CRITICAL, duration=3)
+                        "Error", "Invalid settings...", level=Qgis.Critical, duration=3)
                 self.update_transform_text("Finished processing...")
