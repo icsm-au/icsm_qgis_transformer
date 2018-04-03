@@ -317,28 +317,6 @@ class icsm_ntv2_transformer(object):
     def transform_changed(self):
         self.validate_source_transform()
 
-    def get_dest_crs(self, source_crs):
-        this_source_crs = self.SUPPORTED_TRANSFORMS[self.in_file_crs]
-
-        dest_crs = self.CRS_STRINGS[this_source_crs[2]][0]
-        zone = this_source_crs[3]
-
-        if zone:
-            dest_crs = dest_crs.format(zone=zone)
-
-        return dest_crs
-
-    def get_source_proj_string(self, source_crs):
-        this_source_crs = self.SUPPORTED_TRANSFORMS[self.in_file_crs]
-
-        proj_string = self.CRS_STRINGS[this_source_crs[1]][1]
-        zone = this_source_crs[3]
-
-        if zone:
-            proj_string = proj_string.format(zone=zone)
-
-        return proj_string
-
     def validate_source_transform(self, in_file_crs=None):
         # Check if there's an in_file
         if not self.in_file and not self.in_file_type:
@@ -466,10 +444,8 @@ class icsm_ntv2_transformer(object):
             temp_dir = tempfile.mkdtemp()
             temp_outfilename = os.path.join(temp_dir, 'temp_file.shp')
             log("Tempfile is: {}".format(temp_outfilename))
-            # log(temp_outfilename)
             error, message = QgsVectorFileWriter.writeAsVectorFormat(layer, temp_outfilename, 'utf-8', temp_crs, 'ESRI Shapefile')
-            log(str(error))
-            log(str(QgsVectorFileWriter.NoError))
+
             if error == QgsVectorFileWriter.NoError:
                 log("Success on intermediate transform")
                 # These overwrite the original target layer destination file.
@@ -745,7 +721,7 @@ class icsm_ntv2_transformer(object):
                             self.out_file = os.path.join(directory, self.out_file)
 
                         if extension not in ['shp', 'tiff', 'tif']:
-                            log("Extension was {}, which is invalid. Adding extension".format(extension))
+                            log("Extension was '{}', which is invalid. Adding extension".format(extension))
                             self.out_file.replace(extension, '')
                             if self.in_file_type == 'VECTOR':
                                 self.out_file = self.out_file + '.shp'
